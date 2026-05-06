@@ -1345,6 +1345,32 @@
         grid-column: span 1;
       }
     }
+
+    .ticket-msg {
+      padding: 12px;
+      border-radius: 14px;
+      max-width: 80%;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .ticket-msg.user {
+      background: rgba(108, 99, 255, .12);
+      border: 1px solid rgba(108, 99, 255, .2);
+      align-self: flex-start;
+    }
+
+    .ticket-msg.admin {
+      background: rgba(16, 185, 129, .12);
+      border: 1px solid rgba(16, 185, 129, .2);
+      align-self: flex-end;
+    }
+
+    .ticket-meta {
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 6px;
+    }
   </style>
 </head>
 
@@ -1405,6 +1431,18 @@
             <path d="M16 10a4 4 0 01-8 0" />
           </svg>
           Orders
+        </div>
+        <div class="nav-item" onclick="showSection('support')">
+
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5
+      a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+
+          </svg>
+
+          Support
+
         </div>
         <div class="nav-item" onclick="showSection('users')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1557,6 +1595,7 @@
             <div class="table-header">
               <div class="table-title">Orders</div>
               <div class="table-actions">
+
                 <select id="ord-status-filter" class="btn-sm" onchange="loadOrders(1)" style="padding:6px 10px;">
                   <option value="">All Status</option>
                   <option value="paid">Paid</option>
@@ -1589,7 +1628,73 @@
             <div class="pagination" id="orders-pag"></div>
           </div>
         </div>
+        <div class="section" id="sec-support">
 
+          <div class="table-wrap">
+
+            <div class="table-header">
+
+              <div class="table-title">
+                Support Tickets
+              </div>
+
+              <div class="table-actions">
+                <button class="btn-sm primary" onclick="openNewTicketModal()">
+                  + New Ticket
+                </button>
+                <select id="ticket-status-filter" class="btn-sm" onchange="loadSupportTickets()"
+                  style="padding:6px 10px;">
+
+                  <option value="">All Status</option>
+                  <option value="open">Open</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="assigned">Assigned</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+
+                </select>
+
+                <div class="search-box">
+
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+
+                  </svg>
+
+                  <input id="ticket-search" placeholder="Search tickets..."
+                    oninput="debounce(()=>loadSupportTickets(),400)()" />
+
+                </div>
+
+              </div>
+
+            </div>
+
+            <table>
+
+              <thead>
+
+                <tr>
+                  <th>Ticket</th>
+                  <th>User</th>
+                  <th>Subject</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+
+              </thead>
+
+              <tbody id="support-body"></tbody>
+
+            </table>
+
+          </div>
+
+        </div>
         <!-- ── USERS ── -->
         <div class="section" id="sec-users">
           <div class="table-wrap">
@@ -1931,7 +2036,125 @@
       </div>
     </div>
   </div>
+  <!-- SUPPORT DETAIL -->
+  <!-- NEW SUPPORT TICKET -->
+  <div class="modal-overlay" id="modal-new-ticket">
 
+    <div class="modal">
+
+      <h3>Create Support Ticket</h3>
+
+      <div class="form-grid full">
+
+        <div class="form-field">
+          <label>User Email</label>
+          <input id="new-ticket-email" placeholder="user@email.com" />
+        </div>
+
+        <div class="form-field">
+          <label>Subject</label>
+          <input id="new-ticket-subject" placeholder="Issue subject" />
+        </div>
+
+        <div class="form-field">
+          <label>Priority</label>
+          <select id="new-ticket-priority">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label>Message</label>
+          <textarea id="new-ticket-message" placeholder="Describe the issue..."></textarea>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button class="btn-sm" onclick="closeModal('modal-new-ticket')">
+          Cancel
+        </button>
+
+        <button class="btn-sm primary" onclick="createSupportTicket()">
+          Create Ticket
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+  <div class="modal-overlay" id="modal-support">
+
+    <div class="modal" style="max-width:760px;">
+
+      <h3>Support Ticket</h3>
+
+      <div id="ticket-detail"></div>
+
+      <div style="
+      margin-top:20px;
+      border-top:1px solid var(--border);
+      padding-top:20px;
+    ">
+
+        <h4 style="
+        margin-bottom:14px;
+        font-size:13px;
+        color:var(--text2);
+      ">
+          Conversation
+        </h4>
+
+        <div id="ticket-chat" style="
+          max-height:300px;
+          overflow:auto;
+          display:flex;
+          flex-direction:column;
+          gap:12px;
+          margin-bottom:16px;
+        ">
+        </div>
+
+        <textarea id="ticket-reply" placeholder="Type reply..." style="
+          width:100%;
+          min-height:90px;
+        "></textarea>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <select id="ticket-status" class="btn-sm" style="padding:8px 12px;">
+
+          <option value="open">Open</option>
+          <option value="in_progress">In Progress</option>
+          <option value="assigned">Assigned</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
+
+        </select>
+
+        <button class="btn-sm" onclick="updateTicketStatus()">
+          Update Status
+        </button>
+
+        <button class="btn-sm primary" onclick="sendTicketReply()">
+          Send Reply
+        </button>
+
+        <button class="btn-sm" onclick="closeModal('modal-support')">
+          Close
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
   <!-- Toast container -->
   <div id="toast-container"></div>
 
@@ -2115,7 +2338,7 @@
         renderPagination("orders-pag", d.total, 20, pg, loadOrders);
       } catch (e) { tb.innerHTML = `<tr class="empty-row"><td colspan="6">Error loading orders</td></tr>`; }
     }
-    window.loadOrders = loadOrders;
+    // window.loadOrders = loadOrders;
 
     let currentOrderId = null;
     window.viewOrder = async (id) => {
@@ -2721,7 +2944,381 @@
     window.loadOrders = loadOrders;
     window.loadUsers = loadUsers;
     window.loadProviders = loadProviders;
+    window.loadSupportTickets = loadSupportTickets;
+    window.openTicket = openTicket;
+    window.updateTicketStatus = updateTicketStatus;
+    window.sendTicketReply = sendTicketReply;
+    let currentTicketId = null;
+    window.showSection = function (name) {
 
+      // hide all sections
+      document
+        .querySelectorAll('.section')
+        .forEach(s => s.classList.remove('active'));
+
+      // show selected section
+      const sec = document.getElementById('sec-' + name);
+
+      if (sec) {
+        sec.classList.add('active');
+      }
+
+      // update page title
+      const title =
+        name.charAt(0).toUpperCase() + name.slice(1);
+
+      document.getElementById('page-title')
+        .textContent = title;
+
+      // sidebar active state
+      document
+        .querySelectorAll('.nav-item')
+        .forEach(n => n.classList.remove('active'));
+
+      // load support tickets
+      if (name === 'support') {
+        loadSupportTickets();
+      }
+
+      // load orders
+      if (name === 'orders') {
+        loadOrders(1);
+      }
+
+      // load users
+      if (name === 'users') {
+        loadUsers(1);
+      }
+
+      // load providers
+      if (name === 'providers') {
+        loadProviders(1);
+      }
+
+      // load services
+      if (name === 'services') {
+        loadServices();
+      }
+
+      // load discounts
+      if (name === 'discounts') {
+        loadDiscounts();
+      }
+
+      // load slots
+      if (name === 'slots') {
+        loadSlots();
+      }
+
+      // load analytics
+      if (name === 'analytics') {
+        loadAnalytics(30);
+      }
+
+    };
+    async function loadSupportTickets() {
+
+      try {
+
+        const status =
+          document.getElementById("ticket-status-filter").value;
+
+        const search =
+          document.getElementById("ticket-search").value;
+
+        const r = await api(
+          `/api/admin/support?status=${status}&search=${search}`
+        );
+
+        const tb = document.getElementById("support-body");
+
+        tb.innerHTML = "";
+
+        if (!r.data.length) {
+
+          tb.innerHTML = `
+        <tr class="empty-row">
+          <td colspan="7">
+            No tickets found
+          </td>
+        </tr>
+      `;
+
+          return;
+        }
+
+        r.data.forEach(t => {
+
+          const badgeClass =
+            t.status === "resolved"
+              ? "green"
+              : t.status === "closed"
+                ? "gray"
+                : t.status === "in_progress"
+                  ? "yellow"
+                  : t.status === "assigned"
+                    ? "cyan"
+                    : "purple";
+
+          tb.innerHTML += `
+        <tr>
+
+          <td>${t.ticket_id}</td>
+
+          <td>
+            ${t.user_name}<br>
+            <small>${t.user_email}</small>
+          </td>
+
+          <td>${t.subject}</td>
+
+          <td>
+            <span class="badge ${badgeClass}">
+              ${t.status}
+            </span>
+          </td>
+
+          <td>${t.priority}</td>
+
+          <td>
+            ${new Date(t.created_at)
+              .toLocaleDateString()}
+          </td>
+
+          <td>
+
+            <button
+              class="btn-sm primary"
+              onclick="openTicket(${t.id})"
+            >
+              View
+            </button>
+
+          </td>
+
+        </tr>
+      `;
+        });
+
+      } catch (e) {
+
+        toast("Failed loading tickets", "error");
+
+      }
+    }
+    async function openTicket(id) {
+
+      currentTicketId = id;
+
+      try {
+
+        const r = await api(`/api/admin/support/${id}`);
+
+        const t = r.ticket;
+
+        document.getElementById("ticket-detail").innerHTML = `
+
+      <div class="detail-grid">
+
+        <div class="detail-box">
+
+          <h4>Ticket</h4>
+
+          <div class="detail-row">
+            <span class="detail-label">Ticket ID</span>
+            <span>${t.ticket_id}</span>
+          </div>
+
+          <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <span>${t.status}</span>
+          </div>
+
+          <div class="detail-row">
+            <span class="detail-label">Priority</span>
+            <span>${t.priority}</span>
+          </div>
+
+        </div>
+
+        <div class="detail-box">
+
+          <h4>User</h4>
+
+          <div class="detail-row">
+            <span class="detail-label">Name</span>
+            <span>${t.user_name}</span>
+          </div>
+
+          <div class="detail-row">
+            <span class="detail-label">Email</span>
+            <span>${t.user_email}</span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="detail-box">
+
+        <h4>Issue</h4>
+
+        <div style="font-weight:600;margin-bottom:8px;">
+          ${t.subject}
+        </div>
+
+        <div style="color:var(--text2);">
+          ${t.description || ""}
+        </div>
+
+      </div>
+    `;
+
+        document.getElementById("ticket-status").value =
+          t.status;
+
+        const chat =
+          document.getElementById("ticket-chat");
+
+        chat.innerHTML = "";
+
+        r.messages.forEach(m => {
+
+          chat.innerHTML += `
+
+        <div class="ticket-msg ${m.sender_type}">
+
+          ${m.message}
+
+          <div class="ticket-meta">
+
+            ${m.sender_name}
+            •
+            ${new Date(m.created_at)
+              .toLocaleString()}
+
+          </div>
+
+        </div>
+      `;
+        });
+
+        document
+          .getElementById("modal-support")
+          .classList.add("show");
+
+      } catch (e) {
+
+        toast("Failed loading ticket", "error");
+
+      }
+    }
+    async function updateTicketStatus() {
+
+      try {
+
+        const status =
+          document.getElementById("ticket-status").value;
+
+        await api(
+          `/api/admin/support/${currentTicketId}/status`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ status })
+          }
+        );
+
+        toast("Status updated", "success");
+
+        loadSupportTickets();
+
+      } catch (e) {
+
+        toast("Update failed", "error");
+
+      }
+    }
+    async function sendTicketReply() {
+
+      try {
+
+        const msg =
+          document.getElementById("ticket-reply").value;
+
+        if (!msg.trim()) return;
+
+        await api(
+          `/api/admin/support/${currentTicketId}/reply`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              message: msg
+            })
+          }
+        );
+
+        document.getElementById("ticket-reply").value = "";
+
+        openTicket(currentTicketId);
+
+        toast("Reply sent", "success");
+
+      } catch (e) {
+
+        toast("Reply failed", "error");
+
+      }
+    }
+    window.openNewTicketModal = function () {
+
+      document.getElementById('modal-new-ticket')
+        .classList.add('show');
+
+    };
+    window.createSupportTicket = async function () {
+
+      const email =
+        document.getElementById('new-ticket-email').value;
+
+      const subject =
+        document.getElementById('new-ticket-subject').value;
+
+      const priority =
+        document.getElementById('new-ticket-priority').value;
+
+      const message =
+        document.getElementById('new-ticket-message').value;
+
+      if (!email || !subject || !message) {
+        toast('Fill all fields', 'error');
+        return;
+      }
+
+      try {
+
+        await api('/api/support/create', {
+          method: 'POST',
+          body: JSON.stringify({
+            subject,
+            category: "general",
+            priority,
+            description: message
+          })
+        });
+
+        toast('Ticket created', 'success');
+
+        closeModal('modal-new-ticket');
+
+        loadSupportTickets();
+
+      } catch (err) {
+
+        toast(err.message, 'error');
+
+      }
+
+    };
   </script>
 
 </body>

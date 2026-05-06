@@ -11,6 +11,8 @@ from typing import Optional
 import razorpay
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+import random
+import string
 
 load_dotenv()
 
@@ -652,6 +654,243 @@ async def broadcast(request:Request):
     for r in rows:
         if send_email(r[0],r[1] or "Customer",subject,html): sent+=1
     return {"ok":True,"sent":sent}
+
+
+@app.post("/api/support/create")
+async def create_ticket(request: Request):
+
+    user = await verify_token(request)
+
+    body = await request.json()
+
+    subject = body.get("subject")
+    description = body.get("description")
+    category = body.get("category", "general")
+    priority = body.get("priority", "medium")
+
+    if not subject or not description:
+        raise HTTPException(
+            status_code=400,
+            detail="Subject and description required"
+        )
+
+    ticket_id = "UE-" + ''.join(
+        random.choices(string.digits, k=8)
+    )
+
+    c = pool().getconn()
+
+    try:
+
+        cur = c.cursor()
+
+        cur.execute("""
+            INSERT INTO support_tickets(
+                ticket_id,
+                firebase_uid,
+                subject,
+                category,
+                priority,
+                description,
+                status
+            )
+            VALUES(%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id, ticket_id
+        """, (
+            ticket_id,
+            user["uid"],
+            subject,
+            category,
+            priority,
+            description,
+            "open"
+        ))
+
+        row = cur.fetchone()
+
+        c.commit()
+
+        return {
+            "ok": True,
+            "id": row[0],
+            "ticket_id": row[1]
+        }
+
+    except Exception as e:
+
+        print("SUPPORT CREATE ERROR:", str(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+    finally:
+
+        pool().putconn(c)
+@app.get("/api/support/my-tickets")
+async def my_tickets(request: Request):
+
+    user = await verify_token(request)
+
+    rows = qry("""
+        SELECT
+            id,
+            ticket_id,
+            subject,
+            category,
+            priority,
+            status,
+            created_at
+        FROM support_tickets
+        WHERE firebase_uid=%s
+        ORDER BY created_at DESC
+    """, (user["uid"],))
+
+    return {
+        "data": [
+            {
+                "id": r[0],
+                "ticket_id": r[1],
+                "subject": r[2],
+                "category": r[3],
+                "priority": r[4],
+                "status": r[5],
+                "created_at": r[6].isoformat()
+            }
+            for r in rows
+        ]
+    }
+@app.get("/api/admin/support")
+async def admin_support(request: Request, status: str = "", search: str = ""):
+    w, p = "WHERE 1=1", []
+    if status:
+        w += " AND t.status=%s"; p.append(status)
+    if search:
+        w += " AND (t.subject ILIKE %s OR u.email ILIKE %s OR u.name ILIKE %s)"
+        p += [f"%{search}%"] * 3
+    rows = qry(f"""
+        SELECT t.id, t.ticket_id, t.subject, t.status, t.priority,
+               t.category, t.created_at, u.name, u.email
+        FROM support_tickets t
+        JOIN users u ON t.firebase_uid=u.firebase_uid
+        {w} ORDER BY t.created_at DESC
+    """, p)
+
+    return {
+        "data": [
+            {
+                "id": r[0],
+                "ticket_id": r[1],
+                "subject": r[2],
+                "status": r[3],
+                "priority": r[4],
+                "category": r[5],
+                "created_at": r[6].isoformat(),
+                "user_name": r[7],
+                "user_email": r[8]
+            }
+            for r in rows
+        ]
+    }
+@app.get("/api/admin/support/{tid}")
+async def get_ticket(tid: int, request: Request):
+    rows = qry("""
+        SELECT t.id, t.ticket_id, t.subject, t.status, t.priority,
+               t.category, t.description, t.created_at, u.name, u.email
+        FROM support_tickets t
+        JOIN users u ON t.firebase_uid=u.firebase_uid
+        WHERE t.id=%s
+    """, (tid,))
+    if not rows:
+        raise HTTPException(404, "Not found")
+    r = rows[0]
+    messages = qry("""
+        SELECT id, sender_type, sender_name, message, created_at
+        FROM support_ticket_messages
+        WHERE ticket_id=%s ORDER BY created_at ASC
+    """, (tid,))
+    return {
+        "ticket": {
+            "id": r[0], "ticket_id": r[1], "subject": r[2],
+            "status": r[3], "priority": r[4], "category": r[5],
+            "description": r[6],
+            "created_at": r[7].isoformat(),
+            "user_name": r[8], "user_email": r[9]
+        },
+        "messages": [
+            {"id": m[0], "sender_type": m[1], "sender_name": m[2],
+             "message": m[3], "created_at": m[4].isoformat()}
+            for m in messages
+        ]
+    }
+@app.post("/api/admin/support/{tid}/reply")
+async def admin_reply(tid: int, request: Request):
+    body = await request.json()
+    message = body.get("message")
+    if not message:
+        raise HTTPException(400, "Message required")
+    exe("""
+        INSERT INTO support_ticket_messages(ticket_id, sender_type, sender_name, message)
+        VALUES(%s, %s, %s, %s)
+    """, (tid, "admin", "Admin", message))
+    return {"ok": True}
+@app.patch("/api/admin/support/{tid}/status")
+async def update_ticket_status(tid: int, request: Request):
+
+    body = await request.json()
+
+    status = body.get("status")
+
+    allowed = [
+        "open",
+        "in_progress",
+        "assigned",
+        "resolved",
+        "closed",
+        "rejected"
+    ]
+
+    if status not in allowed:
+        raise HTTPException(400, "Invalid status")
+
+    exe("""
+        UPDATE support_tickets
+        SET
+            status=%s,
+            updated_at=NOW()
+        WHERE id=%s
+    """, (status, tid))
+
+    return {"ok": True}
+@app.post("/api/support/{tid}/message")
+async def add_ticket_message(tid: int, request: Request):
+
+    user = await verify_token(request)
+
+    body = await request.json()
+
+    message = body.get("message")
+
+    if not message:
+        raise HTTPException(400, "Message required")
+
+    exe("""
+        INSERT INTO support_ticket_messages(
+            ticket_id,
+            sender_type,
+            sender_name,
+            message
+        )
+        VALUES(%s,%s,%s,%s)
+    """, (
+        tid,
+        "user",
+        user.get("name", "User"),
+        message
+    ))
+
+    return {"ok": True}
 @app.get("/")
 def serve_index():
     return FileResponse(os.path.join(FRONTEND, "index.html"))
@@ -661,7 +900,6 @@ def serve_static(path: str):
     fp = os.path.join(FRONTEND, path)
     if os.path.isfile(fp): return FileResponse(fp)
     return FileResponse(os.path.join(FRONTEND, "index.html"))
-
 if __name__=="__main__":
     import uvicorn
     uvicorn.run("main:app",host="0.0.0.0",port=8001,reload=True)
