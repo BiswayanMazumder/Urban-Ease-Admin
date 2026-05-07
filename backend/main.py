@@ -11,11 +11,13 @@ from typing import Optional
 import razorpay
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+load_dotenv()
 import random
 import string
-from google import genai as google_genai
-gemini = google_genai.Client()
-load_dotenv()
+from google import genai
+
+gemini = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
 
 # ── ENV ───────────────────────────────────────────────────────────────────────
 DATABASE_URL        = os.getenv("DATABASE_URL")
@@ -112,7 +114,7 @@ def t24(s):
 async def gemini_triage(subject: str, description: str, category: str) -> dict:
     try:
         response = gemini.models.generate_content(
-            model="gemini-2.5-flash-preview-04-17",
+            model="gemini-2.5-flash",
             contents=f"""
 You are a support agent for UrbanEase, a home beauty & wellness services app in India.
 Analyze this support ticket and respond ONLY with valid JSON, no markdown, no backticks.
