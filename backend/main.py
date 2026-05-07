@@ -257,7 +257,7 @@ async def dashboard_insights(request: Request):
 
     try:
         response = gemini.models.generate_content(
-            model="gemini-2.5-flash-preview-04-17",
+            model="gemini-2.5-flash",
             contents=f"""
 You are a business analyst for UrbanEase, a home beauty & wellness app in India.
 Based on this live dashboard data, write exactly 3 short actionable insights for the admin.
@@ -571,7 +571,7 @@ async def slot_forecast(request: Request):
 
     try:
         response = gemini.models.generate_content(
-            model="gemini-2.5-flash-preview-04-17",
+            model="gemini-2.5-flash",
             contents=f"""
 You are a scheduling analyst for UrbanEase, a home beauty & wellness app in India.
 Analyze booking patterns and forecast demand for the next 7 days.
