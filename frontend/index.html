@@ -1569,6 +1569,30 @@
               <div class="stat-icon">🗓</div>
             </div>
           </div>
+          <!-- ── AI INSIGHTS ── -->
+          <div id="ai-insights-panel" style="
+            background: linear-gradient(135deg, rgba(108,99,255,.08), rgba(168,85,247,.08));
+            border: 1px solid rgba(108,99,255,.25);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+          ">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:18px;">✨</span>
+                <span style="font-family:'Syne',sans-serif;font-size:15px;font-weight:600;">AI Insights</span>
+                <span style="font-size:11px;color:var(--text2);background:rgba(108,99,255,.15);
+                  border:1px solid rgba(108,99,255,.3);padding:2px 8px;border-radius:20px;">
+                  Gemini
+                </span>
+              </div>
+              <button class="btn-sm" onclick="loadInsights()" id="insights-refresh-btn">↻ Refresh</button>
+            </div>
+            <div id="ai-insights-body" style="display:flex;flex-direction:column;gap:10px;">
+              <div style="color:var(--text2);font-size:13px;">Loading insights…</div>
+            </div>
+          </div>
+          <!-- ── /AI INSIGHTS ── -->
           <div class="chart-wrap">
             <div class="chart-title">Revenue — Last 7 Days</div>
             <div class="bar-chart" id="dash-chart"></div>
@@ -1827,7 +1851,45 @@
             <input type="date" id="slot-to" class="btn-sm" style="padding:7px 12px;" />
             <button class="btn-sm" onclick="loadSlots()">Load Slots</button>
             <button class="btn-sm primary" onclick="openGenSlotsModal()">⚡ Generate Slots</button>
+            <!-- ADD THIS BUTTON -->
+            <button class="btn-sm" onclick="loadForecast()" style="
+              border-color:rgba(6,182,212,.4);
+              color:var(--accent3);
+            ">🔮 AI Forecast</button>
           </div>
+
+          <!-- ADD THIS FORECAST PANEL -->
+          <div id="forecast-panel" style="
+            display:none;
+            margin-bottom:20px;
+            background:rgba(6,182,212,.06);
+            border:1px solid rgba(6,182,212,.2);
+            border-radius:16px;
+            padding:20px;
+          ">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:18px;">🔮</span>
+                <span style="font-family:'Syne',sans-serif;font-size:15px;font-weight:600;">
+                  AI Demand Forecast
+                </span>
+                <span style="font-size:11px;color:var(--accent3);background:rgba(6,182,212,.12);
+                  border:1px solid rgba(6,182,212,.25);padding:2px 8px;border-radius:20px;">
+                  Next 7 Days
+                </span>
+              </div>
+              <button class="btn-sm" onclick="document.getElementById('forecast-panel').style.display='none'">
+                ✕ Close
+              </button>
+            </div>
+            <div id="forecast-body">
+              <div style="color:var(--text2);font-size:13px;">
+                <span class="spinner"></span> Analyzing patterns…
+              </div>
+            </div>
+          </div>
+          <!-- /FORECAST PANEL -->
+
           <div class="slots-grid" id="slots-grid"></div>
         </div>
 
@@ -1919,15 +1981,21 @@
       <h3>Order Detail</h3>
       <div id="modal-order-content"></div>
       <div class="modal-footer">
-        <select id="ord-status-sel" class="btn-sm" style="padding:7px 12px;">
-          <option value="paid">Paid</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="refunded">Refunded</option>
+        <select id="ticket-status" class="btn-sm" style="padding:8px 12px;">
+          <option value="open">Open</option>
+          <option value="in_progress">In Progress</option>
+          <option value="assigned">Assigned</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
         </select>
-        <button class="btn-sm" onclick="updateOrderStatus()">Update Status</button>
-        <button class="btn-sm danger" onclick="initiateRefund()">Refund</button>
-        <button class="btn-sm" onclick="closeModal('modal-order')">Close</button>
+        <button class="btn-sm" onclick="updateTicketStatus()">Update Status</button>
+        <!-- ADD THIS -->
+        <button class="btn-sm" onclick="runAITriage()" style="
+          border-color:rgba(168,85,247,.4);
+          color:#a855f7;
+        ">✨ AI Triage</button>
+        <button class="btn-sm primary" onclick="sendTicketReply()">Send Reply</button>
+        <button class="btn-sm" onclick="closeModal('modal-support')">Close</button>
       </div>
     </div>
   </div>
@@ -2307,6 +2375,7 @@
         document.getElementById("d-slots-bl").textContent = (data.slots.blocked || 0) + " blocked";
         renderChart(data.chart || []);
         renderTopServices(data.top_services || []);
+        loadInsights();
       } catch (e) {
         console.error("Dashboard error:", e);
         alert("Dashboard failed: " + e.message);
@@ -3382,6 +3451,165 @@ window.loadRefunds = async (oid) => {
       document.getElementById('modal-new-ticket')
         .classList.add('show');
 
+    };
+    // ══════════════════════════════════════════════
+    //  AI INSIGHTS (Dashboard)
+    // ══════════════════════════════════════════════
+    window.loadInsights = async function() {
+      const body = document.getElementById("ai-insights-body");
+      const btn  = document.getElementById("insights-refresh-btn");
+      body.innerHTML = `<div style="color:var(--text2);font-size:13px;"><span class="spinner"></span> Analyzing your data…</div>`;
+      btn.disabled = true;
+      try {
+        const r = await api("/api/admin/dashboard/insights");
+        const icons  = ["📊", "💡", "⚡"];
+        body.innerHTML = r.insights.map((insight, i) => `
+          <div style="
+            display:flex;gap:12px;align-items:flex-start;
+            background:rgba(255,255,255,.03);
+            border:1px solid var(--border);
+            border-radius:10px;padding:12px 14px;
+          ">
+            <span style="font-size:16px;margin-top:1px;flex-shrink:0;">${icons[i] || "•"}</span>
+            <span style="font-size:13px;color:var(--text);line-height:1.6;">${insight}</span>
+          </div>`).join("");
+      } catch(e) {
+        body.innerHTML = `<div style="color:var(--red);font-size:13px;">Failed to load insights: ${e.message}</div>`;
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    // ══════════════════════════════════════════════
+    //  AI FORECAST (Slots)
+    // ══════════════════════════════════════════════
+    window.loadForecast = async function() {
+      const panel = document.getElementById("forecast-panel");
+      const body  = document.getElementById("forecast-body");
+      panel.style.display = "block";
+      body.innerHTML = `<div style="color:var(--text2);font-size:13px;"><span class="spinner"></span> Analyzing booking patterns…</div>`;
+      try {
+        const r = await api("/api/admin/slots/forecast");
+        const f = r.forecast;
+
+        const renderSlots = (slots, color, icon) => slots.length ? slots.map(s => `
+          <div style="
+            background:rgba(255,255,255,.03);border:1px solid var(--border);
+            border-radius:10px;padding:12px;margin-bottom:8px;
+          ">
+            <div style="font-size:13px;font-weight:600;color:${color};margin-bottom:6px;">
+              ${icon} ${s.date} @ ${s.time}
+            </div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">📌 ${s.reason}</div>
+            <div style="font-size:12px;color:var(--text);">→ ${s.action}</div>
+          </div>`).join("")
+          : `<div style="color:var(--text2);font-size:12px;padding:8px;">None predicted</div>`;
+
+        body.innerHTML = `
+          <div style="
+            font-size:13px;color:var(--text);line-height:1.7;
+            background:rgba(255,255,255,.03);border:1px solid var(--border);
+            border-radius:10px;padding:14px;margin-bottom:16px;
+          ">${f.summary}</div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div>
+              <div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:1px;
+                text-transform:uppercase;margin-bottom:10px;">🔥 High Demand</div>
+              ${renderSlots(f.high_demand_slots || [], "var(--red)", "📈")}
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--accent3);font-weight:700;letter-spacing:1px;
+                text-transform:uppercase;margin-bottom:10px;">💤 Low Demand</div>
+              ${renderSlots(f.low_demand_slots || [], "var(--accent3)", "📉")}
+            </div>
+          </div>
+
+          <div style="
+            background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);
+            border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text);line-height:1.6;
+          ">
+            <span style="color:var(--accent);font-weight:700;">💬 Weekly Tip: </span>${f.weekly_tip}
+          </div>`;
+      } catch(e) {
+        body.innerHTML = `<div style="color:var(--red);font-size:13px;">Forecast failed: ${e.message}</div>`;
+      }
+    };
+
+    // ══════════════════════════════════════════════
+    //  AI TRIAGE (Support Ticket Modal)
+    // ══════════════════════════════════════════════
+    window.runAITriage = async function() {
+      if (!currentTicketId) return;
+      toast("Running AI triage…", "info");
+      const chat = document.getElementById("ticket-chat");
+
+      // Show loading in chat
+      const loadingId = "triage-loading-" + Date.now();
+      chat.innerHTML += `
+        <div id="${loadingId}" style="
+          background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.2);
+          border-radius:12px;padding:14px;font-size:13px;color:var(--text2);
+        ">
+          <span class="spinner"></span> AI is analyzing this ticket…
+        </div>`;
+      chat.scrollTop = chat.scrollHeight;
+
+      try {
+        const r = await api(`/api/admin/support/${currentTicketId}/ai-triage`, { method: "POST" });
+        const t = r.triage;
+
+        // Remove loading
+        document.getElementById(loadingId)?.remove();
+
+        const priorityColor = t.priority === "high"
+          ? "var(--red)" : t.priority === "medium"
+          ? "var(--yellow)" : "var(--green)";
+
+        const safeReply = (t.suggested_reply || "").replace(/`/g, "'").replace(/"/g, '&quot;');
+
+        chat.innerHTML += `
+          <div style="
+            background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);
+            border-radius:12px;padding:16px;
+          ">
+            <div style="font-size:11px;color:#a855f7;font-weight:700;
+              letter-spacing:1px;margin-bottom:12px;">
+              ✨ AI TRIAGE RESULT
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+              <span class="badge" style="
+                background:${priorityColor}22;color:${priorityColor};
+                border:1px solid ${priorityColor}55;
+              ">Priority: ${t.priority}</span>
+              <span class="badge purple">Type: ${t.resolution_type}</span>
+              <span class="badge ${t.auto_resolvable ? 'green' : 'gray'}">
+                ${t.auto_resolvable ? '✓ Auto-resolvable' : 'Needs human'}
+              </span>
+              <span class="badge cyan">
+                Confidence: ${Math.round((t.confidence || 0) * 100)}%
+              </span>
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px;
+              text-transform:uppercase;letter-spacing:.5px;">
+              Suggested Reply
+            </div>
+            <div style="
+              font-size:13px;color:var(--text);line-height:1.6;
+              background:rgba(255,255,255,.04);border:1px solid var(--border);
+              border-radius:8px;padding:10px;margin-bottom:10px;
+            ">${t.suggested_reply || '—'}</div>
+            <button class="btn-sm primary" style="font-size:12px;"
+              onclick="document.getElementById('ticket-reply').value = '${safeReply}'">
+              Use This Reply
+            </button>
+          </div>`;
+        chat.scrollTop = chat.scrollHeight;
+        toast("AI triage complete", "success");
+      } catch(e) {
+        document.getElementById(loadingId)?.remove();
+        toast("Triage failed: " + e.message, "error");
+      }
     };
     window.createSupportTicket = async function () {
 
