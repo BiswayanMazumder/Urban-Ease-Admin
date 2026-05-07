@@ -7,3 +7,4 @@ requests==2.31.0
 python-dotenv==1.0.1
 setuptools==70.0.0
 wheel
+google-genai>=1.0.0
