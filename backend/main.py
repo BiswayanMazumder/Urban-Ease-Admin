@@ -25,6 +25,13 @@ BREVO_API_KEY       = os.getenv("BREVO_API_KEY")
 SENDER_EMAIL        = os.getenv("SENDER_EMAIL", "noreply@urbanease.in")
 SENDER_NAME         = os.getenv("SENDER_NAME", "Urban Ease")
 IST                 = ZoneInfo("Asia/Kolkata")
+_rzp = None
+
+def get_rzp():
+    global _rzp
+    if _rzp is None:
+        _rzp = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+    return _rzp
 
 rzp = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
@@ -286,7 +293,23 @@ async def refund_order(oid:int, request:Request):
         exe("UPDATE orders SET refund_id=%s,status='refunded' WHERE id=%s",(ref["id"],oid))
         return {"ok":True,"refund_id":ref["id"]}
     except Exception as e: raise HTTPException(500,str(e))
+@app.get("/api/admin/orders/{oid}/refunds")
+async def get_refunds(oid: int, request: Request):
+    rows = qry("SELECT refund_id FROM orders WHERE id=%s", (oid,))
 
+    if not rows:
+        raise HTTPException(404, "Order not found")
+
+    refund_id = rows[0][0]
+    if not refund_id:
+        return {"refund": None}
+
+    try:
+        client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+        refund = client.refund.fetch(refund_id)
+        return {"refund": refund}
+    except Exception as e:
+        raise HTTPException(500, str(e))
 # ══════════════════════════════════════════════════════════════════════════════
 #  USERS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -660,7 +683,6 @@ async def broadcast(request:Request):
 async def create_ticket(request: Request):
 
     user = await verify_token(request)
-
     body = await request.json()
 
     subject = body.get("subject")
@@ -669,64 +691,195 @@ async def create_ticket(request: Request):
     priority = body.get("priority", "medium")
 
     if not subject or not description:
-        raise HTTPException(
-            status_code=400,
-            detail="Subject and description required"
-        )
+        raise HTTPException(status_code=400, detail="Subject and description required")
 
-    ticket_id = "UE-" + ''.join(
-        random.choices(string.digits, k=8)
-    )
+    ticket_id = "UE-" + ''.join(random.choices(string.digits, k=8))
 
     c = pool().getconn()
-
     try:
-
         cur = c.cursor()
-
         cur.execute("""
-            INSERT INTO support_tickets(
-                ticket_id,
-                firebase_uid,
-                subject,
-                category,
-                priority,
-                description,
-                status
-            )
+            INSERT INTO support_tickets(ticket_id, firebase_uid, subject, category, priority, description, status)
             VALUES(%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id, ticket_id
-        """, (
-            ticket_id,
-            user["uid"],
-            subject,
-            category,
-            priority,
-            description,
-            "open"
-        ))
-
+            RETURNING id, ticket_id, created_at
+        """, (ticket_id, user["uid"], subject, category, priority, description, "open"))
         row = cur.fetchone()
-
         c.commit()
 
-        return {
-            "ok": True,
-            "id": row[0],
-            "ticket_id": row[1]
-        }
+        ticket_db_id   = row[0]
+        ticket_id_str  = row[1]
+        created_at_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
+
+        priority_colors = {"low": "#10b981", "medium": "#f59e0b", "high": "#ef4444"}
+        priority_color  = priority_colors.get(priority, "#6c63ff")
+
+        html_email = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Support Ticket Raised – UrbanEase</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+
+  <!-- Wrapper -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f8;padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#6c63ff,#a855f7);border-radius:16px 16px 0 0;padding:36px 40px;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">UrbanEase</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;letter-spacing:2px;text-transform:uppercase;">Support Centre</div>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="background:#ffffff;padding:40px;">
+
+            <!-- Greeting -->
+            <p style="font-size:22px;font-weight:700;color:#1a1a2e;margin:0 0 8px;">
+              We've received your request 👋
+            </p>
+            <p style="font-size:15px;color:#555577;margin:0 0 28px;line-height:1.6;">
+              Hi <strong>{user.get('name') or user.get('email','there')}</strong>, your support ticket has been successfully created.
+              Our team will review it and get back to you within <strong>24–48 hours</strong>.
+            </p>
+
+            <!-- Ticket Card -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f7ff;border:1px solid #e0deff;border-radius:12px;margin-bottom:28px;">
+              <tr>
+                <td style="padding:20px 24px;border-bottom:1px solid #e0deff;">
+                  <span style="font-size:11px;color:#8888aa;letter-spacing:1.5px;text-transform:uppercase;">Ticket ID</span>
+                  <div style="font-size:20px;font-weight:800;color:#6c63ff;margin-top:4px;font-family:monospace;">{ticket_id_str}</div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:20px 24px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="padding-bottom:14px;">
+                        <div style="font-size:11px;color:#8888aa;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Subject</div>
+                        <div style="font-size:15px;font-weight:600;color:#1a1a2e;">{subject}</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding-bottom:14px;">
+                        <div style="font-size:11px;color:#8888aa;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Description</div>
+                        <div style="font-size:14px;color:#444466;line-height:1.6;">{description}</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding-right:12px;">
+                              <div style="font-size:11px;color:#8888aa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Priority</div>
+                              <span style="background:{priority_color}22;color:{priority_color};border:1px solid {priority_color}55;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;text-transform:capitalize;">{priority}</span>
+                            </td>
+                            <td style="padding-right:12px;">
+                              <div style="font-size:11px;color:#8888aa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Category</div>
+                              <span style="background:#6c63ff22;color:#6c63ff;border:1px solid #6c63ff55;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;text-transform:capitalize;">{category}</span>
+                            </td>
+                            <td>
+                              <div style="font-size:11px;color:#8888aa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Status</div>
+                              <span style="background:#a855f722;color:#a855f7;border:1px solid #a855f755;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">Open</span>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <!-- What Happens Next -->
+            <p style="font-size:13px;font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:1px;margin:0 0 14px;">What happens next?</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+              <tr>
+                <td style="padding-bottom:12px;">
+                  <table cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:32px;height:32px;background:#6c63ff;border-radius:50%;text-align:center;vertical-align:middle;color:#fff;font-size:13px;font-weight:700;">1</td>
+                      <td style="padding-left:12px;font-size:14px;color:#444466;">Our support team reviews your ticket within <strong>a few hours</strong>.</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding-bottom:12px;">
+                  <table cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:32px;height:32px;background:#a855f7;border-radius:50%;text-align:center;vertical-align:middle;color:#fff;font-size:13px;font-weight:700;">2</td>
+                      <td style="padding-left:12px;font-size:14px;color:#444466;">You'll receive an <strong>email reply</strong> once we have an update for you.</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <table cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:32px;height:32px;background:#06b6d4;border-radius:50%;text-align:center;vertical-align:middle;color:#fff;font-size:13px;font-weight:700;">3</td>
+                      <td style="padding-left:12px;font-size:14px;color:#444466;">Once resolved, the ticket is <strong>closed</strong> and you get a confirmation.</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Divider -->
+            <hr style="border:none;border-top:1px solid #eeeeee;margin:28px 0;"/>
+
+            <!-- Footer note -->
+            <p style="font-size:13px;color:#8888aa;line-height:1.6;margin:0;">
+              Please keep your ticket ID <strong style="color:#6c63ff;">{ticket_id_str}</strong> handy for any follow-ups.
+              You can reply to this email to add more information to your ticket.
+            </p>
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f0eeff;border-radius:0 0 16px 16px;padding:24px 40px;text-align:center;">
+            <div style="font-size:12px;color:#8888aa;line-height:1.8;">
+              This is an automated message from <strong style="color:#6c63ff;">UrbanEase Support</strong>.<br/>
+              Raised on {created_at_ist} &nbsp;·&nbsp; Ticket <strong>{ticket_id_str}</strong><br/>
+              <span style="font-size:11px;">© 2025 UrbanEase. All rights reserved.</span>
+            </div>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+
+</body>
+</html>
+"""
+
+        # Send email via Brevo
+        user_email = user.get("email")
+        user_name  = user.get("name") or user_email or "Customer"
+        if user_email:
+            send_email(
+                to_email=user_email,
+                to_name=user_name,
+                subject=f"[{ticket_id_str}] We've received your support request – UrbanEase",
+                html=html_email
+            )
+
+        return {"ok": True, "id": ticket_db_id, "ticket_id": ticket_id_str}
 
     except Exception as e:
-
         print("SUPPORT CREATE ERROR:", str(e))
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
-
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
-
         pool().putconn(c)
 @app.get("/api/support/my-tickets")
 async def my_tickets(request: Request):

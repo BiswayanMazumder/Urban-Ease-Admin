@@ -2331,7 +2331,10 @@
         <td><span style="font-family:monospace;font-size:11px;color:var(--accent);">${o.razorpay_order_id || o.id}</span></td>
         <td>${o.user_name || '—'}<br><span style="font-size:11px;color:var(--text2);">${o.user_email || ''}</span></td>
         <td>₹${o.amount.toLocaleString("en-IN")}</td>
-        <td>${statusBadge(o.status)}</td>
+        <td>
+  ${statusBadge(o.status)}
+  ${o.refund_id ? `<div style="font-size:10px;font-family:monospace;color:var(--text2);margin-top:3px;">${o.refund_id}</div>` : ''}
+</td>
         <td style="font-size:12px;color:var(--text2);">${fmtDate(o.created_at)}</td>
         <td><button class="btn-sm" onclick="viewOrder(${o.id})">View</button></td>
       </tr>`).join("") : `<tr class="empty-row"><td colspan="6">No orders found</td></tr>`;
@@ -2358,7 +2361,17 @@
           <div class="detail-row"><span class="detail-label">Amount</span><span>₹${o.amount.toLocaleString("en-IN")}</span></div>
           <div class="detail-row"><span class="detail-label">Status</span>${statusBadge(o.status)}</div>
           <div class="detail-row"><span class="detail-label">Created</span><span>${fmtDate(o.created_at)}</span></div>
-          ${o.refund_id ? `<div class="detail-row"><span class="detail-label">Refund ID</span><span style="font-family:monospace;font-size:12px;">${o.refund_id}</span></div>` : ''}
+          ${o.refund_id ? `
+  <div class="detail-row">
+    <span class="detail-label">Refund ID</span>
+    <span style="font-family:monospace;font-size:12px;">${o.refund_id}</span>
+  </div>
+  <div class="detail-row">
+    <span class="detail-label">Refunds</span>
+    <button class="btn-sm" onclick="loadRefunds(${o.id})">Track Refunds</button>
+  </div>
+  <div id="refund-track-box" style="margin-top:8px;"></div>
+` : ''}
         </div>
         <div class="detail-box">
           <h4>Customer</h4>
@@ -2404,7 +2417,102 @@
         loadOrders(ordPage);
       } catch (e) { toast("Refund failed: " + e.message, "error"); }
     };
+window.loadRefunds = async (oid) => {
+  const box = document.getElementById("refund-track-box");
+  box.innerHTML = `<span class="spinner"></span>`;
+  try {
+    const r = await api(`/api/admin/orders/${oid}/refunds`);
+    const rf = r.refund;
+    if (!rf) {
+      box.innerHTML = `<div style="font-size:12px;color:var(--text2);">No refund found</div>`;
+      return;
+    }
 
+    const statusConfig = {
+      processed: { color: "var(--green)", bg: "rgba(16,185,129,.12)", border: "rgba(16,185,129,.25)", icon: "✅", label: "Processed", desc: "Refund has been successfully processed. Amount will reflect in customer's account within 5–7 business days." },
+      pending:   { color: "var(--yellow)", bg: "rgba(245,158,11,.12)", border: "rgba(245,158,11,.25)", icon: "⏳", label: "Pending", desc: "Refund is queued and will be processed shortly." },
+      failed:    { color: "var(--red)", bg: "rgba(239,68,68,.12)", border: "rgba(239,68,68,.25)", icon: "❌", label: "Failed", desc: "Refund failed. Please contact Razorpay support or retry." },
+    };
+    const sc = statusConfig[rf.status] || statusConfig.pending;
+    const speedLabel = { normal: "Normal (5–7 days)", optimum: "Optimum (instant if eligible)", instant: "Instant" };
+
+    box.innerHTML = `
+      <div style="
+        background: ${sc.bg};
+        border: 1px solid ${sc.border};
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-top: 10px;
+      ">
+        <!-- Status Banner -->
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 14px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid ${sc.border};
+        ">
+          <span style="font-size: 20px;">${sc.icon}</span>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:${sc.color};">
+              Refund ${sc.label}
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px;line-height:1.4;">
+              ${sc.desc}
+            </div>
+          </div>
+        </div>
+
+        <!-- Details -->
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text2);">💰 Refund Amount</span>
+            <span style="font-weight:700;font-size:14px;color:var(--green);">
+              ₹${(rf.amount / 100).toLocaleString("en-IN")}
+            </span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text2);">🔖 Refund ID</span>
+            <span style="font-family:monospace;font-size:11px;color:var(--text);">${rf.id}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text2);">⚡ Speed</span>
+            <span style="color:var(--text);">${speedLabel[rf.speed_processed] || speedLabel[rf.speed_requested] || rf.speed_processed || rf.speed_requested || '—'}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text2);">📅 Initiated On</span>
+            <span style="color:var(--text);">${new Date(rf.created_at * 1000).toLocaleString("en-IN", {
+              day: "2-digit", month: "short", year: "numeric",
+              hour: "2-digit", minute: "2-digit"
+            })}</span>
+          </div>
+          ${rf.acquirer_data?.arn ? `
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text2);">🏦 ARN / Tracking</span>
+            <span style="font-family:monospace;font-size:11px;color:var(--text);">${rf.acquirer_data.arn}</span>
+          </div>` : ''}
+        </div>
+
+        <!-- Customer note -->
+        <div style="
+          margin-top: 12px;
+          padding: 8px 10px;
+          background: rgba(255,255,255,0.04);
+          border-radius: 8px;
+          font-size: 11px;
+          color: var(--text2);
+          line-height: 1.5;
+        ">
+          ℹ️ The refunded amount will be credited to the customer's original payment method.
+          UPI refunds typically arrive within <strong style="color:var(--text);">1–3 business days</strong>,
+          card refunds within <strong style="color:var(--text);">5–7 business days</strong>.
+        </div>
+      </div>`;
+  } catch (e) {
+    box.innerHTML = `<div style="font-size:12px;color:var(--red);">Failed to load refund: ${e.message}</div>`;
+  }
+};
     // ══════════════════════════════════════════════
     //  USERS
     // ══════════════════════════════════════════════
