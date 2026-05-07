@@ -13,7 +13,8 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 import random
 import string
-
+from google import genai as google_genai
+gemini = google_genai.Client()
 load_dotenv()
 
 # ── ENV ───────────────────────────────────────────────────────────────────────
@@ -108,6 +109,34 @@ def t24(s):
     if m == "AM" and h == 12: h = 0
     return f"{h:02d}:{mn:02d}"
 
+async def gemini_triage(subject: str, description: str, category: str) -> dict:
+    try:
+        response = gemini.models.generate_content(
+            model="gemini-2.5-flash-preview-04-17",
+            contents=f"""
+You are a support agent for UrbanEase, a home beauty & wellness services app in India.
+Analyze this support ticket and respond ONLY with valid JSON, no markdown, no backticks.
+
+Ticket Subject: {subject}
+Category: {category}
+Description: {description}
+
+Return exactly this JSON shape:
+{{
+  "priority": "low" | "medium" | "high",
+  "suggested_reply": "<friendly 2-3 sentence reply>",
+  "resolution_type": "refund" | "reschedule" | "provider_issue" | "technical" | "general",
+  "auto_resolvable": true | false,
+  "confidence": 0.0 to 1.0
+}}
+"""
+        )
+        text = response.text.strip().replace("```json", "").replace("```", "").strip()
+        return json.loads(text)
+    except Exception as e:
+        print("Gemini triage error:", e)
+        return None
+
 # ── FIREBASE AUTH ─────────────────────────────────────────────────────────────
 async def verify_token(request: Request):
     ah = request.headers.get("Authorization", "")
@@ -191,6 +220,73 @@ async def dashboard(request: Request):
         "chart":    [{"date":str(r[0]),"amount":float(r[1])/100} for r in chart],
         "top_services":[{"title":r[0],"rating":float(r[1])} for r in top_svc],
     }
+@app.get("/api/admin/dashboard/insights")
+async def dashboard_insights(request: Request):
+    today = date.today()
+
+    chart = qry("""
+        SELECT DATE(created_at), COUNT(*), COALESCE(SUM(amount), 0)
+        FROM orders
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+        GROUP BY DATE(created_at) ORDER BY 1
+    """)
+    cancels   = qry("SELECT COUNT(*) FROM orders WHERE status='cancelled' AND DATE(created_at)=%s", (today,))
+    top_slot  = qry("""
+        SELECT time, SUM(booked) AS total
+        FROM slot_inventory WHERE date >= %s
+        GROUP BY time ORDER BY total DESC LIMIT 1
+    """, (today,))
+    dead_slots = qry("SELECT COUNT(*) FROM slot_inventory WHERE available=0 AND date >= %s AND is_blocked=FALSE", (today,))
+    busy_provs = qry("SELECT COUNT(*) FROM providers WHERE is_busy=TRUE")
+    free_provs = qry("SELECT COUNT(*) FROM providers WHERE is_busy=FALSE AND is_active=TRUE")
+
+    context = {
+        "today": str(today),
+        "last_7_days": [
+            {"date": str(r[0]), "orders": int(r[1]), "revenue_inr": round(float(r[2]) / 100, 2)}
+            for r in chart
+        ],
+        "cancellations_today":       int(cancels[0][0])   if cancels   else 0,
+        "busiest_slot_time":         top_slot[0][0]        if top_slot  else "N/A",
+        "fully_booked_slots_today":  int(dead_slots[0][0]) if dead_slots else 0,
+        "providers_busy":            int(busy_provs[0][0]) if busy_provs else 0,
+        "providers_free":            int(free_provs[0][0]) if free_provs else 0,
+    }
+
+    try:
+        response = gemini.models.generate_content(
+            model="gemini-2.5-flash-preview-04-17",
+            contents=f"""
+You are a business analyst for UrbanEase, a home beauty & wellness app in India.
+Based on this live dashboard data, write exactly 3 short actionable insights for the admin.
+
+Data:
+{json.dumps(context, indent=2)}
+
+Rules:
+- Each insight must be 1-2 sentences max
+- Be specific — use numbers from the data
+- Tell the admin what to DO, not just what happened
+- Return ONLY a JSON array of 3 strings, no markdown, no backticks
+
+Example: ["insight 1", "insight 2", "insight 3"]
+"""
+        )
+        text = response.text.strip().replace("```json", "").replace("```", "").strip()
+        insights = json.loads(text)
+        return {"ok": True, "insights": insights, "context": context}
+
+    except Exception as e:
+        print("Gemini insights error:", e)
+        return {
+            "ok": False,
+            "insights": [
+                f"Today's cancellations: {context['cancellations_today']} — review if slot blocking is needed.",
+                f"{context['providers_free']} providers are currently free — consider manual assignment.",
+                f"Busiest time slot this week: {context['busiest_slot_time']} — ensure capacity is sufficient."
+            ],
+            "context": context
+        }
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  ORDERS
@@ -424,7 +520,90 @@ async def list_slots(request:Request, date_from:str="", date_to:str=""):
     return {"data":[{"date":str(r[0]),"time":r[1],"capacity":r[2],"base_capacity":r[3],
                      "available":r[4],"booked":r[5],"locked":r[6],"is_blocked":r[7],"block_reason":r[8]}
                     for r in rows]}
+@app.get("/api/admin/slots/forecast")
+async def slot_forecast(request: Request):
+    today = date.today()
 
+    history = qry("""
+        SELECT
+            EXTRACT(DOW FROM date) AS day_of_week,
+            time,
+            ROUND(AVG(booked)::numeric, 2)    AS avg_booked,
+            ROUND(AVG(capacity)::numeric, 2)  AS avg_capacity
+        FROM slot_inventory
+        WHERE date >= %s AND date < %s
+        GROUP BY day_of_week, time
+        ORDER BY day_of_week, time
+    """, (today - timedelta(days=30), today))
+
+    upcoming = qry("""
+        SELECT date, time, capacity, booked, available, is_blocked
+        FROM slot_inventory
+        WHERE date >= %s AND date <= %s
+        ORDER BY date, time
+    """, (today, today + timedelta(days=7)))
+
+    history_data = [
+        {
+            "day_of_week": int(r[0]),
+            "time": r[1],
+            "avg_booked": float(r[2]),
+            "avg_capacity": float(r[3]),
+            "avg_fill_pct": round(float(r[2]) / float(r[3]) * 100, 1) if r[3] else 0
+        }
+        for r in history
+    ]
+    upcoming_data = [
+        {
+            "date": str(r[0]),
+            "day_name": r[0].strftime("%A"),
+            "time": r[1],
+            "capacity": r[2],
+            "booked": r[3],
+            "available": r[4],
+            "is_blocked": r[5],
+            "fill_pct": round(r[3] / r[2] * 100, 1) if r[2] else 0
+        }
+        for r in upcoming
+    ]
+
+    try:
+        response = gemini.models.generate_content(
+            model="gemini-2.5-flash-preview-04-17",
+            contents=f"""
+You are a scheduling analyst for UrbanEase, a home beauty & wellness app in India.
+Analyze booking patterns and forecast demand for the next 7 days.
+
+Historical 30-day averages by day and time:
+{json.dumps(history_data, indent=2)}
+
+Next 7 days current state:
+{json.dumps(upcoming_data, indent=2)}
+
+Today is {today.strftime("%A, %d %B %Y")}.
+
+Return ONLY valid JSON, no markdown, no backticks, in this exact shape:
+{{
+  "summary": "<2 sentence overall forecast>",
+  "high_demand_slots": [
+    {{"date": "YYYY-MM-DD", "time": "HH:MM AM/PM", "reason": "<why>", "action": "<what admin should do>"}}
+  ],
+  "low_demand_slots": [
+    {{"date": "YYYY-MM-DD", "time": "HH:MM AM/PM", "reason": "<why>", "action": "<what admin should do>"}}
+  ],
+  "weekly_tip": "<1 strategic tip for this week>"
+}}
+
+Include up to 4 high_demand and 4 low_demand slots.
+"""
+        )
+        text = response.text.strip().replace("```json", "").replace("```", "").strip()
+        forecast = json.loads(text)
+        return {"ok": True, "forecast": forecast}
+
+    except Exception as e:
+        print("Gemini forecast error:", e)
+        raise HTTPException(500, "Forecast generation failed: " + str(e))
 @app.patch("/api/admin/slots/{sd}/{st}/block")
 async def block_slot(sd:str, st:str, request:Request):
     # await admin_only(request)
@@ -702,7 +881,7 @@ async def create_ticket(request: Request):
         """, (ticket_id, user["uid"], subject, category, priority, description, "open"))
         row = cur.fetchone()
         c.commit()
-
+        
         ticket_db_id   = row[0]
         ticket_id_str  = row[1]
         created_at_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
@@ -871,13 +1050,48 @@ async def create_ticket(request: Request):
                 html=html_email
             )
 
-        return {"ok": True, "id": ticket_db_id, "ticket_id": ticket_id_str}
+        triage = await gemini_triage(subject, description, category)
+        if triage:
+            if triage.get("confidence", 0) >= 0.75:
+                cur2 = c.cursor()
+                cur2.execute("UPDATE support_tickets SET priority=%s WHERE id=%s",
+                    (triage["priority"], ticket_db_id))
+                c.commit(); cur2.close()
+            if triage.get("auto_resolvable") and triage.get("suggested_reply"):
+                exe("""INSERT INTO support_ticket_messages
+                    (ticket_id, sender_type, sender_name, message)
+                    VALUES (%s, 'admin', 'UrbanEase AI', %s)""",
+                    (ticket_db_id, triage["suggested_reply"]))
+
+        return {"ok": True, "id": ticket_db_id, "ticket_id": ticket_id_str, "ai_triage": triage}
 
     except Exception as e:
         print("SUPPORT CREATE ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         pool().putconn(c)
+@app.post("/api/admin/support/{tid}/ai-triage")
+async def ai_triage_ticket(tid: int, request: Request):
+    rows = qry(
+        "SELECT subject, description, category FROM support_tickets WHERE id=%s",
+        (tid,)
+    )
+    if not rows:
+        raise HTTPException(404, "Not found")
+
+    subject, description, category = rows[0]
+    triage = await gemini_triage(subject, description, category)
+
+    if not triage:
+        raise HTTPException(500, "AI triage failed")
+
+    if triage.get("confidence", 0) >= 0.75:
+        exe(
+            "UPDATE support_tickets SET priority=%s, updated_at=NOW() WHERE id=%s",
+            (triage["priority"], tid)
+        )
+
+    return {"ok": True, "triage": triage}
 @app.get("/api/support/my-tickets")
 async def my_tickets(request: Request):
 
