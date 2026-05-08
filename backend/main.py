@@ -606,6 +606,120 @@ Include up to 4 high_demand and 4 low_demand slots.
     except Exception as e:
         print("Gemini forecast error:", e)
         raise HTTPException(500, "Forecast generation failed: " + str(e))
+# ══════════════════════════════════════════════════════════════════════════════
+#  ADMIN COPILOT
+# ══════════════════════════════════════════════════════════════════════════════
+@app.post("/api/admin/copilot")
+async def admin_copilot(request: Request):
+    body  = await request.json()
+    query = body.get("query", "").strip()
+    if not query:
+        raise HTTPException(400, "Query required")
+
+    # ── gather live context ──
+    today = date.today()
+
+    rev_today  = qry("SELECT COALESCE(SUM(amount),0) FROM orders WHERE status='paid' AND DATE(created_at)=%s", (today,))
+    rev_total  = qry("SELECT COALESCE(SUM(amount),0) FROM orders WHERE status='paid'")
+    ord_total  = qry("SELECT COUNT(*) FROM orders")
+    ord_today  = qry("SELECT COUNT(*) FROM orders WHERE DATE(created_at)=%s", (today,))
+    ord_paid   = qry("SELECT COUNT(*) FROM orders WHERE status='paid'")
+    ord_cancel = qry("SELECT COUNT(*) FROM orders WHERE status='cancelled'")
+    usr_total  = qry("SELECT COUNT(*) FROM users")
+    prov_total = qry("SELECT COUNT(*) FROM providers WHERE is_active=TRUE")
+    prov_busy  = qry("SELECT COUNT(*) FROM providers WHERE is_busy=TRUE")
+    prov_free  = qry("SELECT COUNT(*) FROM providers WHERE is_busy=FALSE AND is_active=TRUE")
+    slots_av   = qry("SELECT COUNT(*) FROM slot_inventory WHERE available>0 AND is_blocked=FALSE AND date>=%s", (today,))
+    slots_bl   = qry("SELECT COUNT(*) FROM slot_inventory WHERE is_blocked=TRUE AND date>=%s", (today,))
+
+    top_provs  = qry("SELECT name, rating, total_jobs, is_busy FROM providers WHERE is_active=TRUE ORDER BY total_jobs DESC LIMIT 5")
+    rec_orders = qry("""
+        SELECT o.id, u.name, u.email, o.amount, o.status, o.created_at
+        FROM orders o JOIN users u ON o.firebase_uid=u.firebase_uid
+        ORDER BY o.created_at DESC LIMIT 10
+    """)
+    rec_tickets = qry("""
+        SELECT t.ticket_id, t.subject, t.status, t.priority, u.name
+        FROM support_tickets t JOIN users u ON t.firebase_uid=u.firebase_uid
+        ORDER BY t.created_at DESC LIMIT 5
+    """)
+    week_rev = qry("""
+        SELECT DATE(created_at), COALESCE(SUM(amount),0)
+        FROM orders WHERE status='paid' AND created_at>=NOW()-INTERVAL '7 days'
+        GROUP BY DATE(created_at) ORDER BY 1
+    """)
+
+    context = {
+        "today": str(today),
+        "revenue": {
+            "today_inr": round(float(rev_today[0][0]) / 100, 2) if rev_today else 0,
+            "total_inr": round(float(rev_total[0][0]) / 100, 2) if rev_total else 0,
+        },
+        "orders": {
+            "total": int(ord_total[0][0]) if ord_total else 0,
+            "today": int(ord_today[0][0]) if ord_today else 0,
+            "paid":  int(ord_paid[0][0])  if ord_paid  else 0,
+            "cancelled": int(ord_cancel[0][0]) if ord_cancel else 0,
+        },
+        "users": {"total": int(usr_total[0][0]) if usr_total else 0},
+        "providers": {
+            "total": int(prov_total[0][0]) if prov_total else 0,
+            "busy":  int(prov_busy[0][0])  if prov_busy  else 0,
+            "free":  int(prov_free[0][0])  if prov_free  else 0,
+        },
+        "slots": {
+            "available": int(slots_av[0][0]) if slots_av else 0,
+            "blocked":   int(slots_bl[0][0]) if slots_bl else 0,
+        },
+        "top_providers": [
+            {"name": r[0], "rating": float(r[1]) if r[1] else 0,
+             "jobs": int(r[2]) if r[2] else 0, "busy": r[3]}
+            for r in top_provs
+        ],
+        "recent_orders": [
+            {"id": r[0], "customer": r[1], "email": r[2],
+             "amount_inr": round(float(r[3]) / 100, 2) if r[3] else 0,
+             "status": r[4], "date": str(r[5])[:10]}
+            for r in rec_orders
+        ],
+        "recent_tickets": [
+            {"ticket_id": r[0], "subject": r[1], "status": r[2],
+             "priority": r[3], "user": r[4]}
+            for r in rec_tickets
+        ],
+        "weekly_revenue": [
+            {"date": str(r[0]), "amount_inr": round(float(r[1]) / 100, 2)}
+            for r in week_rev
+        ],
+    }
+
+    prompt = f"""
+You are an intelligent admin copilot for UrbanEase, a home beauty & wellness services app in India.
+You have access to live business data. Answer the admin's question accurately and helpfully.
+
+LIVE BUSINESS DATA:
+{json.dumps(context, indent=2)}
+
+ADMIN QUESTION: {query}
+
+RULES:
+- Answer in 1-4 sentences max unless a list or table is genuinely needed
+- Use specific numbers from the data
+- Be direct and actionable — the admin is busy
+- If the question is about something not in your data, say so honestly
+- Format numbers in Indian style (₹1,234.56)
+- If asked to do an action (like "block slots" or "send email"), explain you can show data but actions must be done via the dashboard buttons
+- Never make up data that isn't in the context above
+
+Respond in plain text only, no markdown, no asterisks, no bullet symbols.
+"""
+
+    try:
+        text = await gemini(prompt)
+        return {"ok": True, "answer": text.strip()}
+    except Exception as e:
+        print("Copilot error:", e)
+        raise HTTPException(500, "Copilot failed: " + str(e))
 @app.patch("/api/admin/slots/{sd}/{st}/block")
 async def block_slot(sd:str, st:str, request:Request):
     # await admin_only(request)
