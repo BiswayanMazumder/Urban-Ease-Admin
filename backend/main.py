@@ -715,8 +715,17 @@ Respond in plain text only, no markdown, no asterisks, no bullet symbols.
 """
 
     try:
-        text = await gemini(prompt)
-        return {"ok": True, "answer": text.strip()}
+        response = gemini.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        text = response.text
+
+        return {
+            "ok": True,
+            "answer": text.strip()
+        }
     except Exception as e:
         print("Copilot error:", e)
         raise HTTPException(500, "Copilot failed: " + str(e))
