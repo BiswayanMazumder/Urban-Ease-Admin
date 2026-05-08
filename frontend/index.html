@@ -1976,29 +1976,24 @@
   <!-- ════ MODALS ════ -->
 
   <!-- Order Detail -->
-  <div class="modal-overlay" id="modal-order">
-    <div class="modal" style="max-width:640px;">
-      <h3>Order Detail</h3>
-      <div id="modal-order-content"></div>
-      <div class="modal-footer">
-        <select id="ticket-status" class="btn-sm" style="padding:8px 12px;">
-          <option value="open">Open</option>
-          <option value="in_progress">In Progress</option>
-          <option value="assigned">Assigned</option>
-          <option value="resolved">Resolved</option>
-          <option value="closed">Closed</option>
-        </select>
-        <button class="btn-sm" onclick="updateTicketStatus()">Update Status</button>
-        <!-- ADD THIS -->
-        <button class="btn-sm" onclick="runAITriage()" style="
-          border-color:rgba(168,85,247,.4);
-          color:#a855f7;
-        ">✨ AI Triage</button>
-        <button class="btn-sm primary" onclick="sendTicketReply()">Send Reply</button>
-        <button class="btn-sm" onclick="closeModal('modal-support')">Close</button>
-      </div>
+ <!-- Order Detail -->
+<div class="modal-overlay" id="modal-order">
+  <div class="modal" style="max-width:640px;">
+    <h3>Order Detail</h3>
+    <div id="modal-order-content"></div>
+    <div class="modal-footer">
+      <select id="ord-status-sel" class="btn-sm" style="padding:7px 12px;">
+        <option value="paid">Paid</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="refunded">Refunded</option>
+      </select>
+      <button class="btn-sm" onclick="updateOrderStatus()">Update Status</button>
+      <button class="btn-sm danger" onclick="initiateRefund()">Refund</button>
+      <button class="btn-sm" onclick="closeModal('modal-order')">Close</button>
     </div>
   </div>
+</div>
 
   <!-- Provider Modal -->
   <div class="modal-overlay" id="modal-provider">
@@ -2155,74 +2150,34 @@
     </div>
 
   </div>
-  <div class="modal-overlay" id="modal-support">
-
-    <div class="modal" style="max-width:760px;">
-
-      <h3>Support Ticket</h3>
-
-      <div id="ticket-detail"></div>
-
-      <div style="
-      margin-top:20px;
-      border-top:1px solid var(--border);
-      padding-top:20px;
-    ">
-
-        <h4 style="
-        margin-bottom:14px;
-        font-size:13px;
-        color:var(--text2);
-      ">
-          Conversation
-        </h4>
-
-        <div id="ticket-chat" style="
-          max-height:300px;
-          overflow:auto;
-          display:flex;
-          flex-direction:column;
-          gap:12px;
-          margin-bottom:16px;
-        ">
-        </div>
-
-        <textarea id="ticket-reply" placeholder="Type reply..." style="
-          width:100%;
-          min-height:90px;
-        "></textarea>
-
-      </div>
-
-      <div class="modal-footer">
-
-        <select id="ticket-status" class="btn-sm" style="padding:8px 12px;">
-
-          <option value="open">Open</option>
-          <option value="in_progress">In Progress</option>
-          <option value="assigned">Assigned</option>
-          <option value="resolved">Resolved</option>
-          <option value="closed">Closed</option>
-
-        </select>
-
-        <button class="btn-sm" onclick="updateTicketStatus()">
-          Update Status
-        </button>
-
-        <button class="btn-sm primary" onclick="sendTicketReply()">
-          Send Reply
-        </button>
-
-        <button class="btn-sm" onclick="closeModal('modal-support')">
-          Close
-        </button>
-
-      </div>
-
+<div class="modal-overlay" id="modal-support">
+  <div class="modal" style="max-width:760px;">
+    <h3>Support Ticket</h3>
+    <div id="ticket-detail"></div>
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:20px;">
+      <h4 style="margin-bottom:14px;font-size:13px;color:var(--text2);">Conversation</h4>
+      <div id="ticket-chat" style="max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:16px;"></div>
+      <textarea id="ticket-reply" placeholder="Type reply..." style="width:100%;min-height:90px;"></textarea>
     </div>
-
+    <div class="modal-footer">
+      <select id="ticket-status" class="btn-sm" style="padding:8px 12px;">
+        <option value="open">Open</option>
+        <option value="in_progress">In Progress</option>
+        <option value="assigned">Assigned</option>
+        <option value="resolved">Resolved</option>
+        <option value="closed">Closed</option>
+      </select>
+      <button class="btn-sm" onclick="updateTicketStatus()">Update Status</button>
+      <!-- ✅ AI TRIAGE BUTTON HERE, NOT IN modal-order -->
+      <button class="btn-sm" onclick="runAITriage()" style="
+        border-color:rgba(168,85,247,.4);
+        color:#a855f7;
+      ">✨ AI Triage</button>
+      <button class="btn-sm primary" onclick="sendTicketReply()">Send Reply</button>
+      <button class="btn-sm" onclick="closeModal('modal-support')">Close</button>
+    </div>
   </div>
+</div>
   <!-- Toast container -->
   <div id="toast-container"></div>
 
