@@ -2437,21 +2437,38 @@
 
     window.logoutUser = () => signOut(auth);
 
-    function renderChart(chartData) {
-      const container = document.getElementById("dash-chart");
-      container.innerHTML = "";
-      if (!chartData.length) { container.innerHTML = "<div style='color:#888'>No data</div>"; return; }
-      const max = Math.max(...chartData.map(d => d.amount));
-      chartData.forEach(d => {
-        const col = document.createElement("div"); col.className = "bar-col";
-        const bar = document.createElement("div"); bar.className = "bar";
-        bar.style.height = (d.amount / max * 100) + "%";
-        bar.setAttribute("data-tip", "₹" + d.amount);
-        const label = document.createElement("div"); label.className = "bar-label";
-        label.innerText = new Date(d.date).getDate();
-        col.appendChild(bar); col.appendChild(label); container.appendChild(col);
-      });
-    }
+    <!-- Replace the existing renderChart function -->
+function renderChart(chartData) {
+  const container = document.getElementById("dash-chart");
+  container.innerHTML = "";
+  if (!chartData.length) { 
+    container.innerHTML = "<div style='color:#888;font-size:13px;'>No data</div>"; 
+    return; 
+  }
+
+  const CHART_HEIGHT = 96; // usable px (120 container - 24 padding-bottom)
+  const max = Math.max(...chartData.map(d => d.amount), 1);
+
+  chartData.forEach(d => {
+    const col = document.createElement("div"); 
+    col.className = "bar-col";
+
+    const bar = document.createElement("div"); 
+    bar.className = "bar";
+    // Use px height, not %, so it works inside flex container
+    const px = Math.max(Math.round((d.amount / max) * CHART_HEIGHT), 4);
+    bar.style.height = px + "px";
+    bar.setAttribute("data-tip", "₹" + d.amount.toLocaleString("en-IN"));
+
+    const label = document.createElement("div"); 
+    label.className = "bar-label";
+    label.innerText = new Date(d.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+
+    col.appendChild(bar); 
+    col.appendChild(label); 
+    container.appendChild(col);
+  });
+}
     function showDashboardLoading() {
       document.querySelectorAll(".stat-value").forEach(el => {
         el.innerHTML = `<div class="skeleton skeleton-text"></div>`;
