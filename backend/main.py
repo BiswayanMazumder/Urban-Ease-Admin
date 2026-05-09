@@ -465,16 +465,72 @@ async def list_providers(request:Request, page:int=1, limit:int=20, search:str="
     off=(page-1)*limit; w,p="WHERE 1=1",[]
     if search: w+=" AND (name ILIKE %s OR phone ILIKE %s)"; p+=[f"%{search}%"]*2
     total = qry(f"SELECT COUNT(*) FROM providers {w}",p)
-    rows  = qry(f"""
-        SELECT id,name,phone,rating,total_jobs,is_active,is_busy,last_assigned_at,created_at
-        FROM providers {w} ORDER BY rating DESC NULLS LAST LIMIT %s OFFSET %s
-    """,p+[limit,off])
-    return {"total":int(total[0][0]),"page":page,"data":[
-        {"id":r[0],"name":r[1],"phone":r[2],"rating":float(r[3]) if r[3] else 0,
-         "total_jobs":int(r[4]) if r[4] else 0,"is_active":r[5],"is_busy":r[6],
-         "last_assigned_at":r[7].isoformat() if r[7] else None,
-         "created_at":r[8].isoformat() if r[8] else None}
-        for r in rows]}
+    rows = qry(f"""
+        SELECT
+            p.id,
+            p.name,
+            p.phone,
+            p.rating,
+            p.total_jobs,
+            p.is_active,
+            p.is_busy,
+            p.last_assigned_at,
+            p.created_at,
+
+            p.current_job_id,
+
+            pa.slot_key,
+            pa.job_status,
+
+            o.address,
+            o.slots,
+            o.cart,
+            o.status
+
+        FROM providers p
+
+        LEFT JOIN provider_assignments pa
+            ON pa.order_id = p.current_job_id
+            AND pa.provider_id = p.id
+
+        LEFT JOIN orders o
+            ON o.id = p.current_job_id
+
+        {w}
+
+        ORDER BY p.rating DESC NULLS LAST
+        LIMIT %s OFFSET %s
+    """, p + [limit, off])
+    return {
+    "total": int(total[0][0]),
+    "page": page,
+    "data": [
+        {
+            "id": r[0],
+            "name": r[1],
+            "phone": r[2],
+            "rating": float(r[3]) if r[3] else 0,
+            "total_jobs": int(r[4]) if r[4] else 0,
+
+            "is_active": r[5],
+            "is_busy": r[6],
+
+            "last_assigned_at": r[7].isoformat() if r[7] else None,
+            "created_at": r[8].isoformat() if r[8] else None,
+
+            "current_job_id": r[9],
+            "slot_key": r[10],
+            "job_status": r[11],
+
+            "address": sj(r[12], {}),
+            "slots": sj(r[13], {}),
+            "cart": sj(r[14], []),
+
+            "order_status": r[15]
+        }
+        for r in rows
+    ]
+}
 
 @app.post("/api/admin/providers")
 async def create_provider(request:Request):
