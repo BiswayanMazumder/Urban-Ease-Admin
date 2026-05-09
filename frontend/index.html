@@ -1976,24 +1976,24 @@
   <!-- ════ MODALS ════ -->
 
   <!-- Order Detail -->
- <!-- Order Detail -->
-<div class="modal-overlay" id="modal-order">
-  <div class="modal" style="max-width:640px;">
-    <h3>Order Detail</h3>
-    <div id="modal-order-content"></div>
-    <div class="modal-footer">
-      <select id="ord-status-sel" class="btn-sm" style="padding:7px 12px;">
-        <option value="paid">Paid</option>
-        <option value="completed">Completed</option>
-        <option value="cancelled">Cancelled</option>
-        <option value="refunded">Refunded</option>
-      </select>
-      <button class="btn-sm" onclick="updateOrderStatus()">Update Status</button>
-      <button class="btn-sm danger" onclick="initiateRefund()">Refund</button>
-      <button class="btn-sm" onclick="closeModal('modal-order')">Close</button>
+  <!-- Order Detail -->
+  <div class="modal-overlay" id="modal-order">
+    <div class="modal" style="max-width:640px;">
+      <h3>Order Detail</h3>
+      <div id="modal-order-content"></div>
+      <div class="modal-footer">
+        <select id="ord-status-sel" class="btn-sm" style="padding:7px 12px;">
+          <option value="paid">Paid</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="refunded">Refunded</option>
+        </select>
+        <button class="btn-sm" onclick="updateOrderStatus()">Update Status</button>
+        <button class="btn-sm danger" onclick="initiateRefund()">Refund</button>
+        <button class="btn-sm" onclick="closeModal('modal-order')">Close</button>
+      </div>
     </div>
   </div>
-</div>
 
   <!-- Provider Modal -->
   <div class="modal-overlay" id="modal-provider">
@@ -2150,40 +2150,41 @@
     </div>
 
   </div>
-<div class="modal-overlay" id="modal-support">
-  <div class="modal" style="max-width:760px;">
-    <h3>Support Ticket</h3>
-    <div id="ticket-detail"></div>
-    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:20px;">
-      <h4 style="margin-bottom:14px;font-size:13px;color:var(--text2);">Conversation</h4>
-      <div id="ticket-chat" style="max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:16px;"></div>
-      <textarea id="ticket-reply" placeholder="Type reply..." style="width:100%;min-height:90px;"></textarea>
-    </div>
-    <div class="modal-footer">
-      <select id="ticket-status" class="btn-sm" style="padding:8px 12px;">
-        <option value="open">Open</option>
-        <option value="in_progress">In Progress</option>
-        <option value="assigned">Assigned</option>
-        <option value="resolved">Resolved</option>
-        <option value="closed">Closed</option>
-      </select>
-      <button class="btn-sm" onclick="updateTicketStatus()">Update Status</button>
-      <!-- ✅ AI TRIAGE BUTTON HERE, NOT IN modal-order -->
-      <button class="btn-sm" onclick="runAITriage()" style="
+  <div class="modal-overlay" id="modal-support">
+    <div class="modal" style="max-width:760px;">
+      <h3>Support Ticket</h3>
+      <div id="ticket-detail"></div>
+      <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:20px;">
+        <h4 style="margin-bottom:14px;font-size:13px;color:var(--text2);">Conversation</h4>
+        <div id="ticket-chat"
+          style="max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:16px;"></div>
+        <textarea id="ticket-reply" placeholder="Type reply..." style="width:100%;min-height:90px;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <select id="ticket-status" class="btn-sm" style="padding:8px 12px;">
+          <option value="open">Open</option>
+          <option value="in_progress">In Progress</option>
+          <option value="assigned">Assigned</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
+        </select>
+        <button class="btn-sm" onclick="updateTicketStatus()">Update Status</button>
+        <!-- ✅ AI TRIAGE BUTTON HERE, NOT IN modal-order -->
+        <button class="btn-sm" onclick="runAITriage()" style="
         border-color:rgba(168,85,247,.4);
         color:#a855f7;
       ">✨ AI Triage</button>
-      <button class="btn-sm primary" onclick="sendTicketReply()">Send Reply</button>
-      <button class="btn-sm" onclick="closeModal('modal-support')">Close</button>
+        <button class="btn-sm primary" onclick="sendTicketReply()">Send Reply</button>
+        <button class="btn-sm" onclick="closeModal('modal-support')">Close</button>
+      </div>
     </div>
   </div>
-</div>
   <!-- Toast container -->
   <div id="toast-container"></div>
   <!-- ════ ADMIN COPILOT ════ -->
 
-<!-- Floating trigger button -->
-<button id="copilot-btn" onclick="toggleCopilot()" style="
+  <!-- Floating trigger button -->
+  <button id="copilot-btn" onclick="toggleCopilot()" style="
   position: fixed;
   bottom: 28px;
   right: 28px;
@@ -2203,8 +2204,8 @@
   animation: glow 3s infinite alternate;
 " title="Admin Copilot">✨</button>
 
-<!-- Copilot panel -->
-<div id="copilot-panel" style="
+  <!-- Copilot panel -->
+  <div id="copilot-panel" style="
   position: fixed;
   bottom: 92px;
   right: 28px;
@@ -2220,8 +2221,8 @@
   overflow: hidden;
   animation: fadeIn .2s ease;
 ">
-  <!-- Header -->
-  <div style="
+    <!-- Header -->
+    <div style="
     padding: 16px 20px;
     border-bottom: 1px solid rgba(255,255,255,.08);
     display: flex;
@@ -2230,24 +2231,24 @@
     background: linear-gradient(135deg, rgba(108,99,255,.15), rgba(168,85,247,.1));
     flex-shrink: 0;
   ">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span style="font-size:20px;">✨</span>
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#f0f0ff;">
-          Admin Copilot
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">✨</span>
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#f0f0ff;">
+            Admin Copilot
+          </div>
+          <div style="font-size:10px;color:#a855f7;letter-spacing:1px;">POWERED BY GEMINI</div>
         </div>
-        <div style="font-size:10px;color:#a855f7;letter-spacing:1px;">POWERED BY GEMINI</div>
       </div>
-    </div>
-    <button onclick="toggleCopilot()" style="
+      <button onclick="toggleCopilot()" style="
       background:none;border:none;cursor:pointer;
       color:var(--text2);font-size:18px;padding:2px 6px;
       border-radius:6px;transition:.2s;
     ">×</button>
-  </div>
+    </div>
 
-  <!-- Messages -->
-  <div id="copilot-messages" style="
+    <!-- Messages -->
+    <div id="copilot-messages" style="
     flex: 1;
     overflow-y: auto;
     padding: 16px;
@@ -2257,8 +2258,8 @@
     min-height: 200px;
     max-height: 340px;
   ">
-    <!-- Welcome message -->
-    <div class="copilot-msg bot" style="
+      <!-- Welcome message -->
+      <div class="copilot-msg bot" style="
       background: rgba(108,99,255,.1);
       border: 1px solid rgba(108,99,255,.2);
       border-radius: 14px 14px 14px 4px;
@@ -2268,28 +2269,32 @@
       color: var(--text);
       max-width: 90%;
     ">
-      👋 Hi! I'm your Admin Copilot. Ask me anything about your business data.<br><br>
-      <span style="color:var(--text2);font-size:12px;">Try: "How much revenue today?" or "Which provider is busiest?"</span>
+        👋 Hi! I'm your Admin Copilot. Ask me anything about your business data.<br><br>
+        <span style="color:var(--text2);font-size:12px;">Try: "How much revenue today?" or "Which provider is
+          busiest?"</span>
+      </div>
     </div>
-  </div>
 
-  <!-- Quick suggestions -->
-  <div id="copilot-suggestions" style="
+    <!-- Quick suggestions -->
+    <div id="copilot-suggestions" style="
     padding: 0 16px 10px;
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
     flex-shrink: 0;
   ">
-    <button class="copilot-chip" onclick="askCopilot(`How much revenue did we make today?`)">💰 Today's revenue</button>
-    <button class="copilot-chip" onclick="askCopilot(`How many orders were cancelled this week?`)">❌ Cancellations</button>
-    <button class="copilot-chip" onclick="askCopilot(`Which provider has the most jobs?`)">🔧 Top provider</button>
-    <button class="copilot-chip" onclick="askCopilot(`How many slots are available today?`)">🗓 Available slots</button>
-    <button class="copilot-chip" onclick="askCopilot(`Any open support tickets?`)">🎫 Open tickets</button>
-  </div>
+      <button class="copilot-chip" onclick="askCopilot(`How much revenue did we make today?`)">💰 Today's
+        revenue</button>
+      <button class="copilot-chip" onclick="askCopilot(`How many orders were cancelled this week?`)">❌
+        Cancellations</button>
+      <button class="copilot-chip" onclick="askCopilot(`Which provider has the most jobs?`)">🔧 Top provider</button>
+      <button class="copilot-chip" onclick="askCopilot(`How many slots are available today?`)">🗓 Available
+        slots</button>
+      <button class="copilot-chip" onclick="askCopilot(`Any open support tickets?`)">🎫 Open tickets</button>
+    </div>
 
-  <!-- Input -->
-  <div style="
+    <!-- Input -->
+    <div style="
     padding: 12px 16px;
     border-top: 1px solid rgba(255,255,255,.08);
     display: flex;
@@ -2297,7 +2302,7 @@
     align-items: flex-end;
     flex-shrink: 0;
   ">
-    <textarea id="copilot-input" placeholder="Ask anything about your business…" style="
+      <textarea id="copilot-input" placeholder="Ask anything about your business…" style="
       flex: 1;
       background: rgba(255,255,255,.05);
       border: 1px solid rgba(255,255,255,.1);
@@ -2313,9 +2318,9 @@
       transition: .2s;
       line-height: 1.4;
     " rows="1" oninput="autoResize(this)"
-       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCopilot();}">
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCopilot();}">
     </textarea>
-    <button onclick="sendCopilot()" id="copilot-send" style="
+      <button onclick="sendCopilot()" id="copilot-send" style="
       width: 38px;
       height: 38px;
       border-radius: 10px;
@@ -2330,34 +2335,37 @@
       flex-shrink: 0;
       transition: .2s;
     ">➤</button>
+    </div>
   </div>
-</div>
 
-<style>
-  .copilot-chip {
-    padding: 4px 10px;
-    border-radius: 20px;
-    border: 1px solid rgba(108,99,255,.3);
-    background: rgba(108,99,255,.08);
-    color: var(--accent);
-    font-size: 11px;
-    cursor: pointer;
-    transition: .2s;
-    font-family: 'DM Sans', sans-serif;
-    white-space: nowrap;
-  }
-  .copilot-chip:hover {
-    background: rgba(108,99,255,.18);
-    border-color: rgba(108,99,255,.5);
-  }
-  #copilot-input:focus {
-    border-color: rgba(108,99,255,.5);
-    box-shadow: 0 0 0 2px rgba(108,99,255,.12);
-  }
-  #copilot-btn:hover {
-    transform: scale(1.08);
-  }
-</style>
+  <style>
+    .copilot-chip {
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(108, 99, 255, .3);
+      background: rgba(108, 99, 255, .08);
+      color: var(--accent);
+      font-size: 11px;
+      cursor: pointer;
+      transition: .2s;
+      font-family: 'DM Sans', sans-serif;
+      white-space: nowrap;
+    }
+
+    .copilot-chip:hover {
+      background: rgba(108, 99, 255, .18);
+      border-color: rgba(108, 99, 255, .5);
+    }
+
+    #copilot-input:focus {
+      border-color: rgba(108, 99, 255, .5);
+      box-shadow: 0 0 0 2px rgba(108, 99, 255, .12);
+    }
+
+    #copilot-btn:hover {
+      transform: scale(1.08);
+    }
+  </style>
 
   <!-- ════ FIREBASE + JS ════ -->
   <script type="module">
@@ -2436,38 +2444,38 @@
     document.getElementById("l-pw").addEventListener("keydown", e => { if (e.key === "Enter") window.loginUser(); });
 
     window.logoutUser = () => signOut(auth);
-function renderChart(chartData) {
-  const container = document.getElementById("dash-chart");
-  container.innerHTML = "";
-  if (!chartData.length) {
-    container.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;'>No revenue data</div>";
-    return;
-  }
+    function renderChart(chartData) {
+      const container = document.getElementById("dash-chart");
+      container.innerHTML = "";
+      if (!chartData.length) {
+        container.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;'>No revenue data</div>";
+        return;
+      }
 
-  const USABLE_PX = 96; // 120px container - 24px bottom padding
-  const max = Math.max(...chartData.map(d => d.amount), 1);
+      const USABLE_PX = 96; // 120px container - 24px bottom padding
+      const max = Math.max(...chartData.map(d => d.amount), 1);
 
-  chartData.forEach(d => {
-    const pxH = Math.max(Math.round((d.amount / max) * USABLE_PX), 4);
-    const col = document.createElement("div");
-    col.className = "bar-col";
+      chartData.forEach(d => {
+        const pxH = Math.max(Math.round((d.amount / max) * USABLE_PX), 4);
+        const col = document.createElement("div");
+        col.className = "bar-col";
 
-    const bar = document.createElement("div");
-    bar.className = "bar";
-    bar.style.height = pxH + "px";          // ← px, not %
-    bar.setAttribute("data-tip", "₹" + d.amount.toLocaleString("en-IN"));
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        bar.style.height = pxH + "px";          // ← px, not %
+        bar.setAttribute("data-tip", "₹" + d.amount.toLocaleString("en-IN"));
 
-    const label = document.createElement("div");
-    label.className = "bar-label";
-    label.textContent = new Date(d.date).toLocaleDateString("en-IN", {
-      day: "numeric", month: "short"
-    });
+        const label = document.createElement("div");
+        label.className = "bar-label";
+        label.textContent = new Date(d.date).toLocaleDateString("en-IN", {
+          day: "numeric", month: "short"
+        });
 
-    col.appendChild(bar);
-    col.appendChild(label);
-    container.appendChild(col);
-  });
-}
+        col.appendChild(bar);
+        col.appendChild(label);
+        container.appendChild(col);
+      });
+    }
     function showDashboardLoading() {
       document.querySelectorAll(".stat-value").forEach(el => {
         el.innerHTML = `<div class="skeleton skeleton-text"></div>`;
@@ -2635,26 +2643,26 @@ function renderChart(chartData) {
         loadOrders(ordPage);
       } catch (e) { toast("Refund failed: " + e.message, "error"); }
     };
-window.loadRefunds = async (oid) => {
-  const box = document.getElementById("refund-track-box");
-  box.innerHTML = `<span class="spinner"></span>`;
-  try {
-    const r = await api(`/api/admin/orders/${oid}/refunds`);
-    const rf = r.refund;
-    if (!rf) {
-      box.innerHTML = `<div style="font-size:12px;color:var(--text2);">No refund found</div>`;
-      return;
-    }
+    window.loadRefunds = async (oid) => {
+      const box = document.getElementById("refund-track-box");
+      box.innerHTML = `<span class="spinner"></span>`;
+      try {
+        const r = await api(`/api/admin/orders/${oid}/refunds`);
+        const rf = r.refund;
+        if (!rf) {
+          box.innerHTML = `<div style="font-size:12px;color:var(--text2);">No refund found</div>`;
+          return;
+        }
 
-    const statusConfig = {
-      processed: { color: "var(--green)", bg: "rgba(16,185,129,.12)", border: "rgba(16,185,129,.25)", icon: "✅", label: "Processed", desc: "Refund has been successfully processed. Amount will reflect in customer's account within 5–7 business days." },
-      pending:   { color: "var(--yellow)", bg: "rgba(245,158,11,.12)", border: "rgba(245,158,11,.25)", icon: "⏳", label: "Pending", desc: "Refund is queued and will be processed shortly." },
-      failed:    { color: "var(--red)", bg: "rgba(239,68,68,.12)", border: "rgba(239,68,68,.25)", icon: "❌", label: "Failed", desc: "Refund failed. Please contact Razorpay support or retry." },
-    };
-    const sc = statusConfig[rf.status] || statusConfig.pending;
-    const speedLabel = { normal: "Normal (5–7 days)", optimum: "Optimum (instant if eligible)", instant: "Instant" };
+        const statusConfig = {
+          processed: { color: "var(--green)", bg: "rgba(16,185,129,.12)", border: "rgba(16,185,129,.25)", icon: "✅", label: "Processed", desc: "Refund has been successfully processed. Amount will reflect in customer's account within 5–7 business days." },
+          pending: { color: "var(--yellow)", bg: "rgba(245,158,11,.12)", border: "rgba(245,158,11,.25)", icon: "⏳", label: "Pending", desc: "Refund is queued and will be processed shortly." },
+          failed: { color: "var(--red)", bg: "rgba(239,68,68,.12)", border: "rgba(239,68,68,.25)", icon: "❌", label: "Failed", desc: "Refund failed. Please contact Razorpay support or retry." },
+        };
+        const sc = statusConfig[rf.status] || statusConfig.pending;
+        const speedLabel = { normal: "Normal (5–7 days)", optimum: "Optimum (instant if eligible)", instant: "Instant" };
 
-    box.innerHTML = `
+        box.innerHTML = `
       <div style="
         background: ${sc.bg};
         border: 1px solid ${sc.border};
@@ -2701,9 +2709,9 @@ window.loadRefunds = async (oid) => {
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <span style="color:var(--text2);">📅 Initiated On</span>
             <span style="color:var(--text);">${new Date(rf.created_at * 1000).toLocaleString("en-IN", {
-              day: "2-digit", month: "short", year: "numeric",
-              hour: "2-digit", minute: "2-digit"
-            })}</span>
+          day: "2-digit", month: "short", year: "numeric",
+          hour: "2-digit", minute: "2-digit"
+        })}</span>
           </div>
           ${rf.acquirer_data?.arn ? `
           <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -2727,10 +2735,10 @@ window.loadRefunds = async (oid) => {
           card refunds within <strong style="color:var(--text);">5–7 business days</strong>.
         </div>
       </div>`;
-  } catch (e) {
-    box.innerHTML = `<div style="font-size:12px;color:var(--red);">Failed to load refund: ${e.message}</div>`;
-  }
-};
+      } catch (e) {
+        box.innerHTML = `<div style="font-size:12px;color:var(--red);">Failed to load refund: ${e.message}</div>`;
+      }
+    };
     // ══════════════════════════════════════════════
     //  USERS
     // ══════════════════════════════════════════════
@@ -2788,9 +2796,55 @@ window.loadRefunds = async (oid) => {
         <td>⭐ ${p.rating.toFixed(1)}</td>
         <td>${p.total_jobs}</td>
         <td>
-          ${p.is_active ? '<span class="badge green">Active</span>' : '<span class="badge gray">Inactive</span>'}
-          ${p.is_busy ? '<span class="badge yellow" style="margin-left:4px;">Busy</span>' : ''}
-        </td>
+  <div style="display:flex;flex-direction:column;gap:6px;">
+
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${p.is_active
+            ? '<span class="badge green">Active</span>'
+            : '<span class="badge gray">Inactive</span>'
+          }
+
+      ${p.is_busy
+            ? '<span class="badge yellow">Busy</span>'
+            : '<span class="badge cyan">Available</span>'
+          }
+    </div>
+
+    ${p.is_busy
+            ? `
+          <div style="
+            font-size:11px;
+            color:var(--text2);
+            line-height:1.5;
+            margin-top:2px;
+          ">
+
+            <div>
+            <strong>Order:</strong>
+              #${p.current_job_id || "-"}
+            </div>
+
+            <div>
+              <strong>Slot:</strong>
+              ${p.slot_key || "-"}
+            </div>
+
+            <div>
+  <strong>Location:</strong>
+  ${p.address?.full_address ||
+            p.address?.landmark ||
+            p.address?.house_flat ||
+            "-"
+            }
+</div>
+
+          </div>
+        `
+            : ""
+          }
+
+  </div>
+</td>
         <td style="display:flex;gap:6px;">
           <button class="btn-sm" onclick="editProvider(${JSON.stringify(p).replace(/"/g, '&quot;')})">Edit</button>
           <button class="btn-sm danger" onclick="deactivateProvider(${p.id})">Remove</button>
@@ -3604,14 +3658,14 @@ window.loadRefunds = async (oid) => {
     // ══════════════════════════════════════════════
     //  AI INSIGHTS (Dashboard)
     // ══════════════════════════════════════════════
-    window.loadInsights = async function() {
+    window.loadInsights = async function () {
       const body = document.getElementById("ai-insights-body");
-      const btn  = document.getElementById("insights-refresh-btn");
+      const btn = document.getElementById("insights-refresh-btn");
       body.innerHTML = `<div style="color:var(--text2);font-size:13px;"><span class="spinner"></span> Analyzing your data…</div>`;
       btn.disabled = true;
       try {
         const r = await api("/api/admin/dashboard/insights");
-        const icons  = ["📊", "💡", "⚡"];
+        const icons = ["📊", "💡", "⚡"];
         body.innerHTML = r.insights.map((insight, i) => `
           <div style="
             display:flex;gap:12px;align-items:flex-start;
@@ -3622,7 +3676,7 @@ window.loadRefunds = async (oid) => {
             <span style="font-size:16px;margin-top:1px;flex-shrink:0;">${icons[i] || "•"}</span>
             <span style="font-size:13px;color:var(--text);line-height:1.6;">${insight}</span>
           </div>`).join("");
-      } catch(e) {
+      } catch (e) {
         body.innerHTML = `<div style="color:var(--red);font-size:13px;">Failed to load insights: ${e.message}</div>`;
       } finally {
         btn.disabled = false;
@@ -3632,9 +3686,9 @@ window.loadRefunds = async (oid) => {
     // ══════════════════════════════════════════════
     //  AI FORECAST (Slots)
     // ══════════════════════════════════════════════
-    window.loadForecast = async function() {
+    window.loadForecast = async function () {
       const panel = document.getElementById("forecast-panel");
-      const body  = document.getElementById("forecast-body");
+      const body = document.getElementById("forecast-body");
       panel.style.display = "block";
       body.innerHTML = `<div style="color:var(--text2);font-size:13px;"><span class="spinner"></span> Analyzing booking patterns…</div>`;
       try {
@@ -3680,7 +3734,7 @@ window.loadRefunds = async (oid) => {
           ">
             <span style="color:var(--accent);font-weight:700;">💬 Weekly Tip: </span>${f.weekly_tip}
           </div>`;
-      } catch(e) {
+      } catch (e) {
         body.innerHTML = `<div style="color:var(--red);font-size:13px;">Forecast failed: ${e.message}</div>`;
       }
     };
@@ -3688,7 +3742,7 @@ window.loadRefunds = async (oid) => {
     // ══════════════════════════════════════════════
     //  AI TRIAGE (Support Ticket Modal)
     // ══════════════════════════════════════════════
-    window.runAITriage = async function() {
+    window.runAITriage = async function () {
       if (!currentTicketId) return;
       toast("Running AI triage…", "info");
       const chat = document.getElementById("ticket-chat");
@@ -3713,7 +3767,7 @@ window.loadRefunds = async (oid) => {
 
         const priorityColor = t.priority === "high"
           ? "var(--red)" : t.priority === "medium"
-          ? "var(--yellow)" : "var(--green)";
+            ? "var(--yellow)" : "var(--green)";
 
         const safeReply = (t.suggested_reply || "").replace(/`/g, "'").replace(/"/g, '&quot;');
 
@@ -3755,7 +3809,7 @@ window.loadRefunds = async (oid) => {
           </div>`;
         chat.scrollTop = chat.scrollHeight;
         toast("AI triage complete", "success");
-      } catch(e) {
+      } catch (e) {
         document.getElementById(loadingId)?.remove();
         toast("Triage failed: " + e.message, "error");
       }
@@ -3809,10 +3863,10 @@ window.loadRefunds = async (oid) => {
     // ══════════════════════════════════════════════
     let copilotOpen = false;
 
-    window.toggleCopilot = function() {
+    window.toggleCopilot = function () {
       copilotOpen = !copilotOpen;
       const panel = document.getElementById("copilot-panel");
-      const btn   = document.getElementById("copilot-btn");
+      const btn = document.getElementById("copilot-btn");
       panel.style.display = copilotOpen ? "flex" : "none";
       btn.style.transform = copilotOpen ? "scale(1.08) rotate(15deg)" : "scale(1)";
       if (copilotOpen) {
@@ -3820,25 +3874,25 @@ window.loadRefunds = async (oid) => {
       }
     };
 
-    window.autoResize = function(el) {
+    window.autoResize = function (el) {
       el.style.height = "auto";
       el.style.height = Math.min(el.scrollHeight, 100) + "px";
     };
 
-    window.askCopilot = function(question) {
+    window.askCopilot = function (question) {
       document.getElementById("copilot-input").value = question;
       // hide chips after first use
       document.getElementById("copilot-suggestions").style.display = "none";
       sendCopilot();
     };
 
-    window.sendCopilot = async function() {
+    window.sendCopilot = async function () {
       const input = document.getElementById("copilot-input");
       const query = input.value.trim();
       if (!query) return;
 
       const msgs = document.getElementById("copilot-messages");
-      const btn  = document.getElementById("copilot-send");
+      const btn = document.getElementById("copilot-send");
 
       // hide chips after first message
       document.getElementById("copilot-suggestions").style.display = "none";
@@ -3909,7 +3963,7 @@ window.loadRefunds = async (oid) => {
             ${r.answer.replace(/\n/g, "<br>")}
           </div>`;
 
-      } catch(e) {
+      } catch (e) {
         document.getElementById(loadId)?.remove();
         msgs.innerHTML += `
           <div style="
@@ -3928,7 +3982,9 @@ window.loadRefunds = async (oid) => {
       }
     };
   </script>
-
+  <script
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyApzKC2nq9OCuaVQV2Jbm9cJoOHPy9kzvM&libraries=geometry">
+</script>
 </body>
 
 </html>
