@@ -1973,8 +1973,13 @@
 
               <!-- SUBJECT -->
               <div class="form-field" style="margin-bottom:14px;">
+                <button class="btn-sm" onclick="generateAiEmail()" style="
+    margin-top:12px;
+    width:100%;
+  ">
+                  ✨ Generate AI Email
+                </button>
                 <label>Email Subject</label>
-
                 <input id="promo-subject" placeholder="Glow Weekend Offer ✨" />
               </div>
 
@@ -4076,6 +4081,30 @@
         toast(`Sent to ${r.sent} users`, "success");
       } catch (e) {
         result.innerHTML = `❌ ${e.message}`;
+        toast(e.message || "Failed", "error");
+      }
+    };
+    window.generateAiEmail = async function () {
+      try {
+        toast("Generating AI promotional email...", "info");
+
+        const r = await api("/api/admin/ai/generate-email", {
+          method: "POST",
+          body: JSON.stringify({
+            campaign_type: "weekend_offer",
+            audience: "beauty customers",
+            offer: "25% OFF",
+            objective: "increase bookings",
+            tone: "luxury futuristic"
+          })
+        });
+
+        document.getElementById("promo-subject").value = r.subject;
+        document.getElementById("promo-html").value = r.html;
+        window.updatePromoPreview();
+        toast("AI email generated successfully", "success");
+
+      } catch (e) {
         toast(e.message || "Failed", "error");
       }
     };
