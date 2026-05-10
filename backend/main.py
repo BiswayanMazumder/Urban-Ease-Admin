@@ -1179,6 +1179,92 @@ async def promotional_email(request: Request):
         "failures": failures[:10]
     }
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  AI PROMOTIONAL EMAIL GENERATOR
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/admin/ai/generate-email")
+async def ai_generate_email(request: Request):
+
+    # await admin_only(request)
+
+    body = await request.json()
+
+    campaign_type = body.get("campaign_type", "offer")
+    audience = body.get("audience", "beauty users")
+    offer = body.get("offer", "25% OFF")
+    objective = body.get("objective", "increase bookings")
+    tone = body.get("tone", "luxury futuristic")
+    festival = body.get("festival", "")
+
+    prompt = f"""
+You are an elite email marketing strategist for UrbanEase,
+a premium home beauty & wellness platform in India.
+
+Generate a HIGH CONVERTING futuristic promotional email.
+
+Campaign Details:
+- Campaign Type: {campaign_type}
+- Audience: {audience}
+- Offer: {offer}
+- Objective: {objective}
+- Tone: {tone}
+- Festival/Event: {festival}
+
+Requirements:
+- Modern luxury futuristic style
+- Premium beauty brand feel
+- Strong CTA
+- Mobile friendly
+- Beautiful HTML email
+- Dark neon aesthetic
+- Include offer section
+- Include CTA button
+- Include footer
+- Include premium marketing copy
+- Make it visually stunning
+
+Return ONLY valid JSON:
+
+{{
+  "subject": "...",
+  "html": "FULL HTML EMAIL"
+}}
+
+No markdown.
+No backticks.
+"""
+
+    try:
+
+        response = gemini.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        text = (
+            response.text
+            .replace("```json", "")
+            .replace("```", "")
+            .strip()
+        )
+
+        data = json.loads(text)
+
+        return {
+            "ok": True,
+            "subject": data.get("subject", ""),
+            "html": data.get("html", "")
+        }
+
+    except Exception as e:
+
+        print("AI EMAIL ERROR:", str(e))
+
+        raise HTTPException(
+            500,
+            f"AI generation failed: {str(e)}"
+        )
 
 @app.post("/api/support/create")
 async def create_ticket(request: Request):
