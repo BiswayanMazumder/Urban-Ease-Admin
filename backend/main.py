@@ -15,6 +15,9 @@ load_dotenv()
 import random
 import string
 from google import genai
+import os
+import requests
+from typing import List, Optional
 
 gemini = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -1034,6 +1037,147 @@ async def broadcast(request:Request):
     for r in rows:
         if send_email(r[0],r[1] or "Customer",subject,html): sent+=1
     return {"ok":True,"sent":sent}
+# ══════════════════════════════════════════════════════════════════════════════
+#  PROMOTIONAL EMAIL CAMPAIGNS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/admin/promotional-email")
+async def promotional_email(request: Request):
+
+    # await admin_only(request)
+
+    body = await request.json()
+
+    subject = body.get("subject", "").strip()
+    html = body.get("html", "").strip()
+
+    segment = body.get("segment", "all")
+    limit = int(body.get("limit", 500))
+
+    if not subject:
+        raise HTTPException(400, "Subject required")
+
+    if not html:
+        raise HTTPException(400, "HTML content required")
+
+    # ── USER SEGMENTS ─────────────────────
+
+    if segment == "all":
+
+        rows = qry("""
+            SELECT
+                email,
+                COALESCE(name, 'Customer')
+            FROM users
+            WHERE email IS NOT NULL
+        """)
+
+    elif segment == "active":
+
+        rows = qry("""
+            SELECT DISTINCT
+                u.email,
+                COALESCE(u.name, 'Customer')
+            FROM users u
+            JOIN orders o
+              ON o.firebase_uid = u.firebase_uid
+            WHERE
+                o.status='paid'
+                AND u.email IS NOT NULL
+        """)
+
+    elif segment == "inactive":
+
+        rows = qry("""
+            SELECT
+                email,
+                COALESCE(name, 'Customer')
+            FROM users
+            WHERE
+                email IS NOT NULL
+                AND firebase_uid NOT IN (
+                    SELECT DISTINCT firebase_uid
+                    FROM orders
+                    WHERE created_at >= NOW() - INTERVAL '60 days'
+                )
+        """)
+
+    else:
+        raise HTTPException(400, "Invalid segment")
+
+    if not rows:
+        return {
+            "ok": False,
+            "message": "No users found"
+        }
+
+    rows = rows[:limit]
+
+    sent = 0
+    failed = 0
+    failures = []
+
+    # ── SEND EMAILS ───────────────────────
+
+    for row in rows:
+
+        email = row[0]
+        name = row[1] or "Customer"
+
+        try:
+
+            r = requests.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "api-key": BREVO_API_KEY,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "sender": {
+                        "name": SENDER_NAME,
+                        "email": SENDER_EMAIL
+                    },
+
+                    "to": [{
+                        "email": email,
+                        "name": name
+                    }],
+
+                    "subject": subject,
+                    "htmlContent": html
+                },
+                timeout=20
+            )
+
+            if r.status_code in (200, 201):
+                sent += 1
+            else:
+                failed += 1
+                failures.append({
+                    "email": email,
+                    "error": r.text
+                })
+
+        except Exception as e:
+
+            failed += 1
+
+            failures.append({
+                "email": email,
+                "error": str(e)
+            })
+
+        # prevent burst spam
+        time.sleep(0.08)
+
+    return {
+        "ok": True,
+        "segment": segment,
+        "total_users": len(rows),
+        "sent": sent,
+        "failed": failed,
+        "failures": failures[:10]
+    }
 
 
 @app.post("/api/support/create")
