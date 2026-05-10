@@ -1238,7 +1238,7 @@ No backticks.
     try:
 
         response = gemini.models.generate_content(
-            model="gemma-3-1B",
+            model="gemini-2.5-flash-lite",
             contents=prompt
         )
 
