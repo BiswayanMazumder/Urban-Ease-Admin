@@ -319,7 +319,173 @@ async def list_orders(request: Request, page:int=1, limit:int=20, status:str="",
                   "refund_id":r[12],"cancelled_at":r[13].isoformat() if r[13] else None}
                  for r in rows]
     }
+@app.get("/api/admin/orders/unassigned/upcoming")
+async def upcoming_unassigned_orders(request: Request):
 
+    rows = qry("""
+        SELECT
+            o.id,
+            o.amount,
+            o.status,
+            o.created_at,
+            o.address,
+            o.slots,
+            u.name,
+            u.email
+
+        FROM orders o
+        JOIN users u
+            ON o.firebase_uid = u.firebase_uid
+
+        LEFT JOIN provider_assignments pa
+            ON pa.order_id = o.id
+
+        WHERE pa.provider_id IS NULL
+        AND o.status IN ('paid', 'confirmed')
+        AND (
+            (o.slots->>'date')::date = CURRENT_DATE
+            OR
+            (o.slots->>'date')::date = CURRENT_DATE + INTERVAL '1 day'
+        )
+
+        ORDER BY o.created_at ASC
+    """)
+
+    return {
+        "count": len(rows),
+        "data": [
+            {
+                "id": r[0],
+                "amount": float(r[1]) / 100 if r[1] else 0,
+                "status": r[2],
+                "created_at": r[3].isoformat() if r[3] else None,
+                "address": sj(r[4], {}),
+                "slots": sj(r[5], {}),
+                "user_name": r[6],
+                "user_email": r[7]
+            }
+            for r in rows
+        ]
+    }
+@app.post("/api/admin/orders/{oid}/assign-provider")
+async def assign_provider(oid: int, request: Request):
+
+    body = await request.json()
+
+    provider_id = body.get("provider_id")
+
+    if not provider_id:
+        raise HTTPException(400, "provider_id required")
+
+    # check order exists
+    order_rows = qry("""
+        SELECT id, slots, status
+        FROM orders
+        WHERE id = %s
+    """, (oid,))
+
+    if not order_rows:
+        raise HTTPException(404, "Order not found")
+
+    order = order_rows[0]
+
+    # already assigned?
+    assigned = qry("""
+        SELECT id
+        FROM provider_assignments
+        WHERE order_id = %s
+    """, (oid,))
+
+    if assigned:
+        raise HTTPException(400, "Provider already assigned")
+
+    # provider exists?
+    prov = qry("""
+        SELECT id, is_active, is_busy
+        FROM providers
+        WHERE id = %s
+    """, (provider_id,))
+
+    if not prov:
+        raise HTTPException(404, "Provider not found")
+
+    p = prov[0]
+
+    if not p[1]:
+        raise HTTPException(400, "Provider inactive")
+
+    if p[2]:
+        raise HTTPException(400, "Provider busy")
+
+    slot = sj(order[1], {})
+
+    slot_key = f"{slot.get('date')}|{slot.get('time')}"
+
+    # create assignment
+    exe("""
+        INSERT INTO provider_assignments (
+            provider_id,
+            order_id,
+            slot_key,
+            assigned_at,
+            job_status
+        )
+        VALUES (%s,%s,%s,NOW(),'assigned')
+    """, (
+        provider_id,
+        oid,
+        slot_key
+    ))
+
+    # mark provider busy
+    exe("""
+        UPDATE providers
+        SET
+            is_busy = TRUE,
+            current_job_id = %s,
+            last_assigned_at = NOW()
+        WHERE id = %s
+    """, (
+        oid,
+        provider_id
+    ))
+
+    return {
+        "ok": True,
+        "message": "Provider assigned successfully"
+    }
+@app.get("/api/admin/providers/available")
+async def available_providers():
+
+    rows = qry("""
+        SELECT
+            id,
+            name,
+            phone,
+            rating,
+            total_jobs
+
+        FROM providers
+
+        WHERE
+            is_active = TRUE
+            AND is_busy = FALSE
+
+        ORDER BY rating DESC NULLS LAST
+    """)
+
+    return {
+        "data": [
+            {
+                "id": r[0],
+                "name": r[1],
+                "phone": r[2],
+                "rating": float(r[3]) if r[3] else 0,
+                "total_jobs": int(r[4]) if r[4] else 0
+            }
+            for r in rows
+        ]
+    }
 @app.get("/api/admin/orders/{oid}")
 async def get_order(oid:int, request:Request):
     rows = qry("""
