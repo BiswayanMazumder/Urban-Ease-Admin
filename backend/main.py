@@ -17,6 +17,7 @@ import string
 from google import genai
 import os
 import requests
+import math
 from typing import List, Optional
 
 gemini = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -1666,6 +1667,245 @@ async def add_ticket_message(tid: int, request: Request):
     ))
 
     return {"ok": True}
+# ══════════════════════════════════════════════════════════════════════════════
+#  LIVE PROVIDER TRACKING
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/provider/location")
+async def update_provider_location(request: Request):
+
+    body = await request.json()
+
+    provider_id = body.get("provider_id")
+    latitude    = body.get("latitude")
+    longitude   = body.get("longitude")
+
+    speed       = body.get("speed_kmh", 0)
+    status      = body.get("status", "online")
+
+    if not provider_id:
+        raise HTTPException(400, "provider_id required")
+
+    rows = qry(
+        """
+        SELECT id
+        FROM provider_live_locations
+        WHERE provider_id=%s
+        """,
+        (provider_id,)
+    )
+
+    if rows:
+
+        exe(
+            """
+            UPDATE provider_live_locations
+            SET
+                latitude=%s,
+                longitude=%s,
+                speed_kmh=%s,
+                status=%s,
+                updated_at=NOW()
+            WHERE provider_id=%s
+            """,
+            (
+                latitude,
+                longitude,
+                speed,
+                status,
+                provider_id
+            )
+        )
+
+    else:
+
+        exe(
+            """
+            INSERT INTO provider_live_locations(
+                provider_id,
+                latitude,
+                longitude,
+                speed_kmh,
+                status
+            )
+            VALUES(%s,%s,%s,%s,%s)
+            """,
+            (
+                provider_id,
+                latitude,
+                longitude,
+                speed,
+                status
+            )
+        )
+
+    return {
+        "ok": True
+    }
+
+
+@app.get("/api/admin/live-providers")
+async def get_live_providers(request: Request):
+
+    rows = qry(
+        """
+        SELECT
+
+            p.id,
+            p.name,
+            p.phone,
+            p.rating,
+            p.is_busy,
+
+            l.latitude,
+            l.longitude,
+            l.speed_kmh,
+            l.status,
+            l.updated_at
+
+        FROM providers p
+
+        LEFT JOIN provider_live_locations l
+            ON p.id = l.provider_id
+
+        WHERE p.is_active=TRUE
+
+        ORDER BY p.id ASC
+        """
+    )
+
+    return {
+
+        "data": [
+
+            {
+
+                "provider_id": r[0],
+                "name": r[1],
+                "phone": r[2],
+                "rating": float(r[3]) if r[3] else 0,
+                "is_busy": r[4],
+
+                "latitude": float(r[5]) if r[5] else None,
+                "longitude": float(r[6]) if r[6] else None,
+
+                "speed_kmh": float(r[7]) if r[7] else 0,
+
+                "status": r[8],
+
+                "updated_at": (
+                    r[9].isoformat()
+                    if r[9] else None
+                )
+
+            }
+
+            for r in rows
+        ]
+    }
+
+
+@app.post("/api/admin/simulate-provider-movement")
+async def simulate_provider_movement(request: Request):
+
+    providers = qry(
+        """
+        SELECT id
+        FROM providers
+        WHERE is_active=TRUE
+        """
+    )
+
+    base_lat = 22.5726
+    base_lng = 88.3639
+
+    updated = 0
+
+    for row in providers:
+
+        provider_id = row[0]
+
+        existing = qry(
+            """
+            SELECT latitude, longitude
+            FROM provider_live_locations
+            WHERE provider_id=%s
+            """,
+            (provider_id,)
+        )
+
+        if existing:
+
+            lat = float(existing[0][0])
+            lng = float(existing[0][1])
+
+            lat += random.uniform(-0.0015, 0.0015)
+            lng += random.uniform(-0.0015, 0.0015)
+
+        else:
+
+            lat = base_lat + random.uniform(-0.02, 0.02)
+            lng = base_lng + random.uniform(-0.02, 0.02)
+
+        speed = round(random.uniform(10, 45), 1)
+
+        rows = qry(
+            """
+            SELECT id
+            FROM provider_live_locations
+            WHERE provider_id=%s
+            """,
+            (provider_id,)
+        )
+
+        if rows:
+
+            exe(
+                """
+                UPDATE provider_live_locations
+                SET
+                    latitude=%s,
+                    longitude=%s,
+                    speed_kmh=%s,
+                    updated_at=NOW()
+                WHERE provider_id=%s
+                """,
+                (
+                    lat,
+                    lng,
+                    speed,
+                    provider_id
+                )
+            )
+
+        else:
+
+            exe(
+                """
+                INSERT INTO provider_live_locations(
+                    provider_id,
+                    latitude,
+                    longitude,
+                    speed_kmh,
+                    status
+                )
+                VALUES(%s,%s,%s,%s,%s)
+                """,
+                (
+                    provider_id,
+                    lat,
+                    lng,
+                    speed,
+                    "online"
+                )
+            )
+
+        updated += 1
+
+    return {
+        "ok": True,
+        "updated": updated
+    }
 @app.get("/")
 def serve_index():
     return FileResponse(os.path.join(FRONTEND, "index.html"))
