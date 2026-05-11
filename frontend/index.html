@@ -8,6 +8,9 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap"
     rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <style>
     :root {
       --bg: #050510;
@@ -1460,6 +1463,20 @@
           </svg>
           Providers
         </div>
+        <div class="nav-item" onclick="showSection('tracking')">
+
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13
+      a9 9 0 0118 0z" />
+
+            <circle cx="12" cy="10" r="3" />
+
+          </svg>
+
+          Live Tracking
+
+        </div>
         <div class="nav-section">Catalogue</div>
         <div class="nav-item" onclick="showSection('services')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1785,7 +1802,56 @@
             <div class="pagination" id="providers-pag"></div>
           </div>
         </div>
+        <!-- ── LIVE TRACKING ── -->
+        <div class="section" id="sec-tracking">
 
+          <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:18px;
+  ">
+
+            <div>
+
+              <div style="
+        font-family:'Syne';
+        font-size:20px;
+        font-weight:700;
+      ">
+                Live Provider Tracking
+              </div>
+
+              <div style="
+        color:var(--text2);
+        font-size:13px;
+        margin-top:4px;
+      ">
+                Real-time provider movement simulation
+              </div>
+
+            </div>
+
+            <button class="btn-sm primary" onclick="simulateMovement()">
+              ⚡ Simulate Movement
+            </button>
+
+          </div>
+
+          <div id="tracking-map" style="
+    height:700px;
+    border-radius:24px;
+    border:1px solid var(--border);
+  "></div>
+
+          <div id="tracking-cards" style="
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:16px;
+    margin-top:20px;
+  "></div>
+
+        </div>
         <!-- ── SERVICES ── -->
         <div class="section" id="sec-services">
           <div class="table-wrap">
@@ -3465,7 +3531,17 @@
       if (name === 'analytics') {
         loadAnalytics(30);
       }
-
+      // load tracking map
+      if (name === 'tracking') {
+        setTimeout(() => {
+          if (!window._trackingMap) {
+            window._initTrackingMap();
+          } else {
+            window._trackingMap.invalidateSize();
+            window._loadLiveProviders();
+          }
+        }, 200);
+      }
     };
     async function loadSupportTickets() {
 
@@ -4110,6 +4186,104 @@
     };
   </script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyApzKC2nq9OCuaVQV2Jbm9cJoOHPy9kzvM&libraries=geometry">
+  </script>
+  <script>
+    const API_BASE = 'https://urbaneaseadmin.vercel.app';
+    window._trackingMap = null;
+    let _trackingMarkers = [];
+
+    window._initTrackingMap = async function () {
+      if (window._trackingMap) {
+        setTimeout(() => window._trackingMap.invalidateSize(), 300);
+        await window._loadLiveProviders();
+        return;
+      }
+
+      window._trackingMap = L.map('tracking-map').setView([20.2961, 85.8245], 12);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'OpenStreetMap'
+      }).addTo(window._trackingMap);
+
+      // Critical: force size recalculation after the section is visible
+      setTimeout(() => {
+        window._trackingMap.invalidateSize();
+      }, 400);
+
+      await window._loadLiveProviders();
+    };
+
+    window._loadLiveProviders = async function () {
+      try {
+        const r = await fetch(`${API_BASE}/api/admin/live-providers`);
+        const d = await r.json();
+
+        _trackingMarkers.forEach(m => window._trackingMap.removeLayer(m));
+        _trackingMarkers = [];
+
+        const cards = document.getElementById('tracking-cards');
+        cards.innerHTML = '';
+
+        (d.data || []).forEach((p, i) => {
+          if (p.latitude === null || p.longitude === null) return;
+
+          const lat = Number(p.latitude);
+          const lng = Number(p.longitude);
+
+          if (i === 0) window._trackingMap.setView([lat, lng], 13);
+
+          const marker = L.marker([lat, lng]).addTo(window._trackingMap);
+          marker.bindPopup(`
+        <div>
+          <b>${p.name}</b><br/>
+          📞 ${p.phone}<br/>
+          ⭐ ${p.rating}<br/>
+          🚀 ${p.speed_kmh} km/h<br/>
+          ${p.is_busy ? '🔴 Busy' : '🟢 Available'}
+        </div>
+      `);
+          _trackingMarkers.push(marker);
+
+          cards.innerHTML += `
+        <div style="background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:18px;">
+          <div style="font-family:'Syne';font-size:17px;font-weight:700;">${p.name}</div>
+          <div style="color:var(--text2);margin-top:6px;font-size:13px;">${p.phone}</div>
+          <div style="display:flex;justify-content:space-between;margin-top:16px;">
+            <div>
+              <div style="font-size:11px;color:var(--text2);">SPEED</div>
+              <div style="margin-top:5px;font-size:18px;font-weight:700;">${p.speed_kmh}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text2);">STATUS</div>
+              <div style="margin-top:5px;">
+                ${p.is_busy
+              ? '<span class="badge yellow">Busy</span>'
+              : '<span class="badge green">Available</span>'}
+              </div>
+            </div>
+          </div>
+        </div>`;
+        });
+
+        setTimeout(() => window._trackingMap.invalidateSize(), 200);
+
+      } catch (e) {
+        console.error('loadLiveProviders error:', e);
+      }
+    };
+
+    window.simulateMovement = async function () {
+      await fetch(`${API_BASE}/api/admin/simulate-provider-movement`, { method: 'POST' });
+      await window._loadLiveProviders();
+    };
+
+    // Auto-refresh every 10s when tracking tab is active
+    setInterval(async () => {
+      const sec = document.getElementById('sec-tracking');
+      if (sec && sec.classList.contains('active') && window._trackingMap) {
+        await window.simulateMovement();
+      }
+    }, 10000);
   </script>
 </body>
 
